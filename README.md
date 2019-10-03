@@ -2,7 +2,7 @@
 
 > Howto für die Entwicklung von Addons für die Homematic CCU und RaspberryMatic
 
-**WORK IN PROGRESS**
+**WORK IN PROGRESS. EVERYONE IS INVITED TO PARTICIPATE! PULL REQUESTS WELCOME!**
 
 ## Inhalt
 
