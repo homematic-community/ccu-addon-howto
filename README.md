@@ -28,6 +28,7 @@
   * Tipps zu Dokumentation und Support
   * ...
 * ...
+* Weiterführende Links
 * [Lizenz](#lizenz)
 
 ## Einführung
@@ -119,6 +120,10 @@ diese Feature (leider, noch?) nicht.
 
 
 ## Best Practices
+
+## Weiterführende Links
+
+* Dokus, Wiki, Projekte, ...
 
 ## Lizenz
 
