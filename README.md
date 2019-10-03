@@ -6,25 +6,31 @@
 
 ## Inhalt
 
-* Einführung
-* Struktur eines Addons
+* [Einführung](#einführung)
+* [Struktur eines Addons]()
   * update_script
   * rc_script
   * ...
-* Button in Systemsteuerung
-* UI, tcl cgi scripts
-* Binaries portieren/bauen
-* Individuelle Webserver Konfiguration
-* Cronjobs
-* Backup-Ausnahmen
-* Monit (RaspberryMatic)
-* Dateien in Readonly Partition patchen
-* Best Practices
+* [Button in Systemsteuerung]()
+* [Update Check]()
+* [UI, tcl cgi scripts]()
+* [Binaries portieren/bauen]()
+* [Individuelle Webserver Konfiguration]()
+* [Cronjobs]()
+* [Backup-Ausnahmen (RaspberryMatic)]()
+* [Monit (RaspberryMatic)]()
+* [Dateien in Readonly Partition patchen]()
+* [Best Practices]()
+  * Buildautomatisierung
   * Continuous Integration mit Travis
   * ...
 * ...
+* [Lizenz](#lizenz)
 
 ## Einführung
+
+_...Erläuterung Buildroot basierte Systeme vs. Paketmanagement a la apt/rpm/..._
+
 
 ## Stuktur eines Addons
 
@@ -93,16 +99,24 @@ Commands:
 
 ## Button in Systemsteuerung
 
+Zum Anlegen und Entfernen von Buttons im WebUI unter Systemsteuerung ...
+
 ## Binaries portieren/bauen
 
 ## Individuelle Webserver Konfiguration
 
 ## Backup-Ausnahmen (RaspberryMatic)
 
+RaspberryMatic bietet die Möglichkeit Verzeichnisse aus dem Backup auszunehmen. Wird in einem Verzeichnis eine Datei
+mit dem Namen `.nobackup` angelegt wird RaspberryMatic dieses Verzeichnis beim Backup nicht sichern. Die CCU3 bietet 
+diese Feature (leider, noch?) nicht.
+
 ## Dateien in Readonly Partition patchen
+
+
 
 ## Best Practices
 
 ## Lizenz
 
-* Documentation CC-BY-SA (c) Sebastian Raff, Jens Maus, André Litfin
+* [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/legalcode.de) (c) [see AUTHORS](AUTHORS)
