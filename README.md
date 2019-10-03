@@ -23,6 +23,9 @@
 * [Best Practices]()
   * Buildautomatisierung
   * Continuous Integration mit Travis
+  * Lizenzierung
+  * Versionierung
+  * Tipps zu Dokumentation und Support
   * ...
 * ...
 * [Lizenz](#lizenz)
