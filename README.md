@@ -15,6 +15,7 @@
 * [Update Check]()
 * [UI, tcl cgi scripts]()
 * [Binaries portieren/bauen]()
+  * Hardwarekompatibilität, rpi0/armv6, rpi3/armv7, rpi4/arm64(?), debmatic/x86, ...
 * [Individuelle Webserver Konfiguration]()
 * [Cronjobs]()
 * [Backup-Ausnahmen (RaspberryMatic)]()
