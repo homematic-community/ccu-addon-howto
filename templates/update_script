@@ -1,0 +1,78 @@
+#!/bin/sh
+#
+#   CCU addon installer template (MIT, from ccu-addon-mosquitto). The firmware
+#   unpacks the archive below /usr/local/tmp, cd's into it and runs
+#   ./update_script HM-RASPBERRYMATIC. Exit codes: 10 = fresh install (the
+#   CCU3 firmware reboots anyway, OpenCCU reboots on 10), 0 = update
+#   (OpenCCU does not reboot, so the service is started here), 13 =
+#   unsupported platform.
+#
+#   Replace ADDON with your addon id everywhere.
+#
+
+ADDON=mosquitto
+ADDONS_DIR=/usr/local/addons
+ADDON_DIR=$ADDONS_DIR/$ADDON
+CONF_DIR=/usr/local/etc/config
+WWW_DIR=$CONF_DIR/addons/www/$ADDON
+EXITCODE=10
+
+# one package per architecture: refuse the wrong one (versions is written by the build)
+. ./$ADDON/versions
+if [ "`uname -m`" != "$ADDON_ARCH" ]; then
+    echo "error: this package is for $ADDON_ARCH, this system is `uname -m`" >&2
+    exit 13
+fi
+
+mount | grep /usr/local 2>&1 >/dev/null
+if [ $? -eq 1 ]; then
+    mount /usr/local
+fi
+
+mkdir -p $ADDONS_DIR && chmod 755 $ADDONS_DIR
+mkdir -p $CONF_DIR/addons/www && chmod 755 $CONF_DIR/addons/www
+mkdir -p $CONF_DIR/rc.d
+
+# an update: stop the running service through the previous version's script
+if [ -f $CONF_DIR/rc.d/$ADDON ]; then
+    EXITCODE=0
+    $CONF_DIR/rc.d/$ADDON stop
+fi
+
+# everything but etc/ and var/ is owned by the addon: nothing stale may survive
+rm -rf $ADDON_DIR/bin $ADDON_DIR/lib $ADDON_DIR/www $ADDON_DIR/versions
+
+cp -af $ADDON $ADDONS_DIR/
+mkdir -p $ADDON_DIR/var $ADDON_DIR/etc
+
+# migrations from older layouts of this addon go here, idempotently
+# (example: fold a conf.d/ directory into one file, keep the old one as conf.d.old)
+
+# default configuration on the first install only: on the CCU the file belongs to the user
+if [ ! -f $ADDON_DIR/etc/$ADDON.conf ]; then
+    cp $ADDON_DIR/etc/$ADDON.conf.default $ADDON_DIR/etc/$ADDON.conf
+fi
+
+# links: -n because busybox ln -T refuses to replace an existing directory symlink
+rmdir $WWW_DIR 2> /dev/null
+ln -sfn $ADDON_DIR/www $WWW_DIR
+ln -sf $ADDON_DIR/bin/$ADDON-service $CONF_DIR/rc.d/$ADDON
+
+# the Einstellungen button (templates/bin/update_addon, linked as ./update_addon in the archive)
+touch $CONF_DIR/hm_addons.cfg
+./update_addon $ADDON $ADDON.cfg
+
+sync
+
+# Start the service again after an update. The original CCU3 firmware runs
+# this script in a chroot during the shutdown of the reboot that follows
+# the upload (/etc/init.d/S00InstallAddon); the boot starts the addon, so
+# nothing may be started from inside the chroot. OpenCCU runs it live and
+# does not reboot after an update, so the service has to be started here.
+if [ $EXITCODE -eq 0 ] && [ ! -f /etc/init.d/S00InstallAddon ]; then
+    # never start from the installer's temp dir, OpenCCU deletes it afterwards
+    cd /
+    $CONF_DIR/rc.d/$ADDON start
+fi
+
+exit $EXITCODE

@@ -1,0 +1,142 @@
+#!/bin/sh
+#
+#   CCU addon service script template (MIT, from ccu-addon-mosquitto). Linked
+#   as /usr/local/etc/config/rc.d/ADDON. Called by the firmware with
+#   init (early boot), start (end of boot), stop (shutdown), info (the
+#   Zusatzsoftware page), restart and uninstall (its buttons), and by the
+#   addon's own settings page with reload and status.
+#
+
+ADDON=mosquitto
+CONF_DIR=/usr/local/etc/config
+ADDON_DIR=/usr/local/addons/$ADDON
+WWW_DIR=$CONF_DIR/addons/www/$ADDON
+PIDFILE=/var/run/$ADDON.pid
+DAEMON=$ADDON_DIR/bin/$ADDON
+DAEMON_ARGS="-c $ADDON_DIR/etc/$ADDON.conf"
+
+# No LD_LIBRARY_PATH here: bundled binaries find their libraries through the
+# RPATH patched in at build time; a global LD_LIBRARY_PATH would poison the
+# firmware's glibc binaries with same-named musl libraries.
+
+# provides VERSION_ADDON (written by the build)
+. $ADDON_DIR/versions
+
+log() {
+    logger -t $ADDON -p daemon.$1 "$2"
+}
+
+# pid of the running daemon, empty when not running; drops a stale pid file
+Pid() {
+    local pid
+    if [ -f $PIDFILE ]; then
+        pid=`cat $PIDFILE 2>/dev/null`
+        if [ -n "$pid" ] && [ -d /proc/$pid ]; then
+            echo $pid
+            return 0
+        fi
+        rm -f $PIDFILE
+    fi
+    for pid in `pidof $ADDON 2>/dev/null`; do
+        case "`tr '\0' ' ' < /proc/$pid/cmdline 2>/dev/null`" in
+            $DAEMON*) echo $pid; return 0 ;;
+        esac
+    done
+    return 1
+}
+
+Stop() {
+    local pid i
+    pid=`Pid`
+    if [ -z "$pid" ]; then
+        echo "$ADDON not running"
+        return 1
+    fi
+    echo -n "Stopping $ADDON: "
+    log info "Stopping $ADDON (pid $pid)"
+    kill $pid 2>/dev/null
+    i=0
+    while [ $i -lt 20 ] && [ -d /proc/$pid ]; do
+        sleep 0.5
+        i=$((i + 1))
+    done
+    if [ -d /proc/$pid ]; then
+        log warn "Killing $ADDON (pid $pid)"
+        kill -9 $pid 2>/dev/null
+        sleep 1
+    fi
+    rm -f $PIDFILE
+    echo "OK"
+    return 0
+}
+
+Start() {
+    local dir
+    # only etc/ and var/ are worth backing up (OpenCCU: tar --exclude-tag=.nobackup)
+    for dir in bin lib www; do
+        [ -d $ADDON_DIR/$dir ] && touch $ADDON_DIR/$dir/.nobackup
+    done
+    if [ -n "`Pid`" ]; then
+        echo "$ADDON already running"
+        log err "cannot start - already running"
+        return 1
+    fi
+    echo -n "Starting $ADDON: "
+    log info "Starting $ADDON (addon $VERSION_ADDON)"
+    # never inherit a working directory that can vanish (the OpenCCU installer's temp dir)
+    cd /
+    if start-stop-daemon -S -q -b -m -p $PIDFILE --exec $DAEMON -- $DAEMON_ARGS; then
+        echo "OK"
+    else
+        echo "FAILED"
+        log err "start-stop-daemon failed"
+        return 1
+    fi
+}
+
+# JSON for the settings page; when stopped, the last error line from the syslog
+Status() {
+    local pid rss err
+    pid=`Pid`
+    if [ -z "$pid" ]; then
+        err=$(grep "$ADDON\[" /var/log/messages 2>/dev/null | grep -i "error\|unable\|failed" | tail -1 | sed -e "s/.*$ADDON\[[0-9]*\]: //" | tr -d '"\')
+        echo "{\"running\":false,\"lastError\":\"$err\"}"
+        return 1
+    fi
+    rss=`awk '/^VmRSS/ {print $2}' /proc/$pid/status 2>/dev/null`
+    echo "{\"running\":true,\"pid\":$pid,\"rss_kb\":${rss:-0}}"
+}
+
+case "$1" in
+    init) ;;                       # early boot: nothing to prepare here
+    start) Start || exit 1 ;;
+    stop) Stop || exit 1 ;;
+    restart) Stop; sleep 1; Start || exit 1 ;;
+    reload)
+        pid=`Pid`
+        [ -n "$pid" ] || { echo "$ADDON not running"; exit 1; }
+        echo -n "Reloading $ADDON: "; kill -HUP $pid && echo "OK" ;;
+    status) Status || exit 1 ;;
+    info)
+        # parsed by the Zusatzsoftware page as "Key: value" lines; Name is mandatory
+        echo "Info: <div><a target=\"_blank\" href=\"https://github.com/homematic-community/ccu-addon-$ADDON\"><img src=\"/addons/$ADDON/logo.png\" height=\"48\"/></a></div>"
+        echo "Name: Mosquitto"
+        echo "Version: $VERSION_ADDON"
+        echo "Update: /addons/$ADDON/update_check.cgi"
+        echo "Config-Url: /addons/$ADDON/settings.cgi"
+        echo "Operations: restart uninstall"
+        ;;
+    uninstall)
+        Stop
+        $ADDON_DIR/bin/update_addon $ADDON      # removes the Einstellungen button
+        rm -f $CONF_DIR/rc.d/$ADDON
+        rm -f $WWW_DIR
+        rm -rf $ADDON_DIR
+        log info "Uninstalled $ADDON"
+        ;;
+    *)
+        # unknown commands (info.de, info.en) must stay silent: their output is parsed too
+        exit 0 ;;
+esac
+
+exit 0
