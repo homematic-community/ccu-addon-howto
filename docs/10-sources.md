@@ -34,6 +34,12 @@ Repository: [eq-3/occu](https://github.com/eq-3/occu), the published parts of th
 - [homematic-community/XML-API](https://github.com/homematic-community/XML-API): the classic minimal addon (Tcl CGIs only); its `update_script` still shows the CCU1/CCU2 branches, its rc.d script the `info` fields.
 - [jens-maus/hm_pdetect](https://github.com/jens-maus/hm_pdetect), [CUxD](https://cuxd.de/), [CCU-Historian](https://github.com/mdzio/ccu-historian): further long-lived addons worth reading.
 
+## Test tooling and prior art for CCU clients
+
+- [hobbyquaker/hm-simulator](https://github.com/hobbyquaker/hm-simulator): partial CCU simulation for automated tests (rfd binrpc on 2001, HmIPServer xmlrpc on 2010, ReGa mock on 8181, behaviour scripts, in-process event API). Planned to be extended substantially (September 2026).
+- [rdmtc/node-red-contrib-ccu](https://github.com/rdmtc/node-red-contrib-ccu) `test/`: mocha tests against hm-simulator (`rpc_spec.js`, `regahss_spec.js`, `context_spec.js`, `utils.js`, `simulator-data/`, `simulator-behaviors/`).
+- [hobbyquaker/hm2mqtt.js](https://github.com/hobbyquaker/hm2mqtt.js) `test/`: node:test with in-process fakes for binrpc/xmlrpc and ReGa (`rpc.test.js`, `rega.test.js`, `cast.test.js`, `values.test.js`, `interfaces.test.js`, `e2e.test.js`).
+
 ## Forum threads (homematic-forum.de)
 
 - [Addon-Paket für die CCU erstellen? (2011)](https://homematic-forum.de/forum/viewtopic.php?f=26&t=5985): put files under `/usr/local/addons`, link them into `/usr/local/etc/config/addons/www` instead of patching `/www`; `update_script` must be executable.

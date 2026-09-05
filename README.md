@@ -21,7 +21,7 @@ Pull requests welcome.
 | [05 Binaries](docs/05-binaries.md) | No toolchain on the box, glibc 2.27 on the CCU3, self-contained musl binaries with patchelf, building in Alpine containers |
 | [06 System integration](docs/06-system-integration.md) | Syslog, pid files, backups (`.nobackup`), monit, cron, firewall API, USB sticks, memory pressure |
 | [07 Updates and releases](docs/07-updates-and-releases.md) | Update check protocol, self-update from the settings page, GitHub releases, version schemes, automatic releases |
-| [08 Testing](docs/08-testing.md) | Container e2e test that replays the firmware installer, unit tests, headless browser against the real page, hardware checklist |
+| [08 Testing](docs/08-testing.md) | Container e2e test that replays the firmware installer, unit tests, hm-simulator for addons that talk to the CCU, headless browser against the real page, hardware checklist |
 | [09 Guide for AI agents](docs/09-agent-guide.md) | Working rules, an `AGENTS.md` template, roadmap conventions, the trap list |
 | [10 Sources](docs/10-sources.md) | Firmware files, GitHub sources, forum threads, example addons |
 | [templates/](templates/) | Copy-and-adapt: `update_script`, rc.d script, session check, query-string helpers, update check CGI, `update_addon`, container test |

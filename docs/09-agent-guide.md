@@ -45,7 +45,8 @@ condensed checklist.
 4. Runtime scripts (`update_script`, rc.d) with the migration from the previous release.
 5. Web UI: settings page, CGIs with session checks, Tcl 8.2 compatible.
 6. Self-update, update check.
-7. Tests: unit, container e2e, then all three hardware platforms; fix what they find.
+7. Tests: unit, container e2e, hm-simulator if the addon talks to the CCU ([08](08-testing.md) 1b),
+   then all three hardware platforms; fix what they find.
 8. CI, release workflows, automatic releases.
 9. Documentation: README (user facing), BUILD.md, release notes, roadmap archive.
 10. Hand the release decision to the maintainer.

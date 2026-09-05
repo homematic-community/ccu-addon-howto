@@ -1,6 +1,7 @@
 # 08 Testing
 
-Three layers, cheapest first. All of them exist in ccu-addon-mosquitto and RedMatic and can be copied.
+Three layers, cheapest first. All of them exist in ccu-addon-mosquitto and RedMatic and can be copied;
+the simulator layer (1b) exists in node-red-contrib-ccu and hm2mqtt.js.
 
 ## 1. Unit tests without a CCU
 
@@ -13,6 +14,62 @@ Three layers, cheapest first. All of them exist in ccu-addon-mosquitto and RedMa
   (`test/parser.test.js` in the Mosquitto addon has 18 cases, no framework).
 
 Node.js is the test tool of choice here, but only as a tool: nothing of it ships in the addon.
+
+## 1b. Addons that talk to the CCU: test against hm-simulator, not against a CCU
+
+Addons that are *clients* of the CCU (Node-RED nodes, MQTT bridges, anything that does `init`
+on the RPC interfaces or runs ReGa scripts) have a second layer that needs no CCU either.
+The CCU offers three things such an addon talks to: `rfd` (BidCos-RF, binrpc on port 2001),
+`HmIPServer` (xmlrpc on port 2010) and ReGaHSS (script execution over HTTP on port 8181).
+[hobbyquaker/hm-simulator](https://github.com/hobbyquaker/hm-simulator) (npm) fakes them:
+
+- binrpc on 2001 and xmlrpc on 2010; incoming `init`, `ping`, `system.listMethods`,
+  `getParamsetDescription`; outgoing `listDevices`, `newDevices`, `deleteDevices`, `event`,
+  `system.multicall`;
+- devices and their paramsets from JSON files (`simulator-data/`), behaviour scripts that press
+  buttons or open windows on a timer (`simulator-behaviors/`), and an in-process API to inject
+  events from a test: `hmSim.api.emit('setValue', 'rfd', 'BidCoS-RF:1', 'PRESS_SHORT', true)`;
+- a ReGa mock (`hmSim.regaSim`, port 8181) with variables, programs, rooms, functions and
+  channel names whose state the test can change directly before it triggers a poll.
+
+Use it in-process (`new HmSim(options)` in `before`, `close()` in `after`) rather than as a
+separate process, so a test can manipulate simulator state and wait for the resulting message.
+Delete the cache files the client writes (`ccu_*.json`: devices, paramsets, ReGa names, values)
+before each run, or a test passes on stale data. Its README says it "is far away from a complete
+simulation": no `MASTER`/`LINK` paramsets, no error responses, no service messages, only the
+devices its authors needed. The plan (September 2026) is to have it extended substantially with
+AI help: more devices and paramset types, proper error responses, service messages, a scriptable
+ReGa side. Check the repository before writing a private mock, and contribute missing pieces
+there rather than into your addon's `test/`.
+
+Two projects show what to test at this layer and how, and are worth a look as prior art before
+writing the first test:
+
+- [node-red-contrib-ccu](https://github.com/rdmtc/node-red-contrib-ccu) `test/`: mocha,
+  should.js and `node-red-node-test-helper` against hm-simulator. `utils.js` builds the simulator
+  options (devices, ReGa data, ports, behaviour scripts) and removes the cache files;
+  `rpc_spec.js` covers `setValue`, events on several channels, both interfaces, the `cache` and
+  `change` flags; `regahss_spec.js` changes `regaSim.variables` and asserts the next poll;
+  `context_spec.js` the Node-RED context.
+- [hm2mqtt.js](https://github.com/hobbyquaker/hm2mqtt.js) `test/`: node:test, no framework, no
+  simulator process. `rpc.test.js` injects fake binrpc/xmlrpc client and server objects and asserts
+  the whole subscription lifecycle: `init` with URL and id, unsubscribe with an empty URL,
+  `listDevices` answering the device list, `event` and `system.multicall`, `ping` after half the
+  timeout, re-`init` after 60 s without an event, one warning and a retry every 30 s when `init`
+  fails, CUxD as binrpc on port 8701. `rega.test.js` uses a `fakeRega()` returning channels, rooms,
+  functions, variables (with `valueType` and `enum`) and programs, and asserts change detection
+  across polls. `cast.test.js`, `values.test.js` and `interfaces.test.js` cover type casting,
+  `roles.test.js`/`hadiscovery.test.js` the derived metadata, `e2e.test.js` the package.
+
+The checklist that falls out of both: every RPC method you call and every one you serve; the
+subscription lifecycle (init, unsubscribe, ping, re-init on silence, retry on failure); the
+paramset description cache on disk and the ReGa name cache (stale, missing, corrupt); type
+casting per `TYPE` (`BOOL`, `ACTION`, `ENUM` with `VALUE_LIST`, `FLOAT`/`INTEGER` with
+`MIN`/`MAX`, `STRING`), `WORKING`/`DIRECTION` hints in a multicall; ReGa script results (the
+JSON-in-`WriteLine` convention, timestamps, enum values) and what happens when ReGa answers slowly
+or not at all. Wire-level simulator and in-process fakes are complementary: the fakes are fast
+and deterministic for lifecycle and error paths, the simulator catches serialisation and
+protocol mistakes the fakes cannot see.
 
 ## 2. Container end-to-end test that replays the firmware installer
 
