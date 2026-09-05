@@ -74,6 +74,13 @@ Everything on this list cost real hours in 2026:
 - GitHub keeps `+` in tag and asset names but URLs need `%2B`.
 - The CCU3's `/usr/local` has 96k inodes; count them for `node_modules`, and clean the chroot
   installer's leftover temp dirs.
+- A password or ACL file that a Mosquitto plugin points to must exist, or the broker does not
+  start, and `--test-config` does not catch it: create empty files at service start.
+- Non-ASCII passwords: Tcl re-encodes strings with the CGI's locale before `exec`; keep request
+  bytes as bytes (`encoding system iso8859-1`, no `encoding convertfrom`) so an umlaut reaches
+  `mosquitto_passwd` as the UTF-8 an MQTT client sends.
+- In a test container pid 1 must reap (`docker run --init`), and `ldconfig` ignores libraries
+  whose names do not start with `lib` (a stub `tclrega.so` belongs into `/usr/lib`).
 
 ## An AGENTS.md to start from
 
