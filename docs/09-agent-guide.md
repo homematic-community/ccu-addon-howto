@@ -7,7 +7,9 @@ condensed checklist.
 ## Read first
 
 1. This handbook, chapters [01](01-platforms.md) to [08](08-testing.md); the ten facts in the
-   [README](../README.md) are the minimum.
+   [README](../README.md) are the minimum. For openccu-lite also [11](11-openccu-lite.md) and
+   [12](12-porting-to-openccu-lite.md); a porting job can start from
+   [templates/PORTING-PROMPT.md](../templates/PORTING-PROMPT.md).
 2. The repository's `AGENTS.md` (or `CLAUDE.md`) and `ROADMAP.md`; completed work usually sits in
    `roadmap-archive/`.
 3. A reference implementation: [ccu-addon-mosquitto](https://github.com/homematic-community/ccu-addon-mosquitto)
@@ -28,8 +30,8 @@ condensed checklist.
   what was found; a "follow-ups" task collects ideas. That is how the next session (human or
   agent) picks up where you stopped.
 - **Verify on the real firmwares before calling anything done.** The CCU3 firmware (Tcl 8.2,
-  glibc 2.27, chroot install) and OpenCCU (Tcl 8.6, live install) each break things the other
-  does not. A container e2e test is mandatory but not sufficient.
+  glibc 2.27, chroot install), OpenCCU (Tcl 8.6, live install) and openccu-lite (systemd,
+  confined, no ReGa) each break things the others do not. A container e2e test is mandatory but not sufficient.
 - **Keep lab details out of the repo**: addresses, passwords and session ids of test systems
   belong in a private note, never in code, docs, issues or commit messages.
 - **Report faithfully**: when a test fails, say so with the output; when a step was skipped, say
@@ -80,6 +82,11 @@ Everything on this list cost real hours in 2026:
 - Non-ASCII passwords: Tcl re-encodes strings with the CGI's locale before `exec`; keep request
   bytes as bytes (`encoding system iso8859-1`, no `encoding convertfrom`) so an umlaut reaches
   `mosquitto_passwd` as the UTF-8 an MQTT client sends.
+- openccu-lite: a confined addon cannot write `/var/run/<name>.pid`, `/usr/local/etc/config`,
+  or a `/tmp` file another user created first (`protected_regular`); there is no
+  `/var/log/messages`; the `tclrega.so` shim answers only the session check; a foreground
+  `start` blocks the unit; `X-Occulite-Session` is trusted only after `/api/auth/v1/state`
+  confirmed it, and never on a CCU ([11](11-openccu-lite.md)).
 - In a test container pid 1 must reap (`docker run --init`), and `ldconfig` ignores libraries
   whose names do not start with `lib` (a stub `tclrega.so` belongs into `/usr/lib`).
 

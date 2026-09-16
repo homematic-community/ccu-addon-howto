@@ -1,7 +1,8 @@
 # 01 Platforms
 
 An addon runs on a Buildroot-based embedded Linux with busybox. There is no package manager, no
-compiler, no sudo; everything runs as root. Two firmware families matter today:
+compiler, no sudo; everything runs as root. Two firmware families matter today
+(a third, openccu-lite, is OpenCCU without ReGaHSS and with systemd; see [11](11-openccu-lite.md)):
 
 | | Original CCU3 firmware (eQ-3) | OpenCCU (formerly RaspberryMatic) |
 | --- | --- | --- |
@@ -47,7 +48,8 @@ Sources: the values were read from the lab systems (`/VERSION`, `/lib/libc.so.6`
 ## Which platforms to support
 
 RedMatic 9 and ccu-addon-mosquitto settled on **armv7l, aarch64 and x86_64**: the CCU3 firmware
-and every OpenCCU variant. armv6l (Raspberry Pi 1 and Zero) was dropped in 2026: the CPU is too
+and every OpenCCU variant. openccu-lite only runs **aarch64 and x86_64**, and never selects an
+`armv7l` asset ([11](11-openccu-lite.md)). armv6l (Raspberry Pi 1 and Zero) was dropped in 2026: the CPU is too
 weak for anything with a runtime and no current musl or Node builds exist for it. If you ship one
 package per architecture, check `uname -m` in `update_script` and refuse a mismatch; exit code 13
 is the conventional "unsupported platform" code and OpenCCU shows it as `Error (13)`.

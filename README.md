@@ -1,6 +1,6 @@
 # ccu-addon-howto
 
-> How to build addons ("Zusatzsoftware") for the Homematic CCU3 and OpenCCU (formerly RaspberryMatic), for humans and for AI coding agents.
+> How to build addons ("Zusatzsoftware") for the Homematic CCU3, OpenCCU (formerly RaspberryMatic) and [openccu-lite](https://github.com/hobbyquaker/openccu-lite), for humans and for AI coding agents.
 
 **Status 2026-09: rewritten from scratch in English.** Everything in here was verified on real
 systems (original eQ-3 CCU3 firmware 3.89.8 on CCU3 hardware, OpenCCU 3.89.8 on x86_64 and on a
@@ -24,7 +24,9 @@ Pull requests welcome.
 | [08 Testing](docs/08-testing.md) | Container e2e test that replays the firmware installer, unit tests, hm-simulator for addons that talk to the CCU, headless browser against the real page, hardware checklist |
 | [09 Guide for AI agents](docs/09-agent-guide.md) | Working rules, an `AGENTS.md` template, roadmap conventions, the trap list |
 | [10 Sources](docs/10-sources.md) | Firmware files, GitHub sources, forum threads, example addons |
-| [templates/](templates/) | Copy-and-adapt: `update_script`, rc.d script, session check, query-string helpers, update check CGI, `update_addon`, container test |
+| [11 openccu-lite](docs/11-openccu-lite.md) | The CCU firmware without ReGaHSS: generated systemd units, confinement (own user, `ProtectSystem=strict`), the catalogue's `runtime` block, session gate and `X-Occulite-Session`, the metadata API, what is gone |
+| [12 Porting to openccu-lite](docs/12-porting-to-openccu-lite.md) | Step-by-step checklist to make an existing addon run on all three firmwares from one package |
+| [templates/](templates/) | Copy-and-adapt: `update_script`, rc.d script, session check, query-string helpers, update check CGI, `update_addon`, container test, and the [openccu-lite porting prompt](templates/PORTING-PROMPT.md) for your coding agent |
 
 ## Ten facts that save you a day
 
@@ -58,6 +60,23 @@ Pull requests welcome.
 10. Test the install path exactly as the firmware does it (a Debian container with busybox `sh`
     replaying `install_addon`), then on the real firmwares: CCU3 firmware and OpenCCU differ in
     Tcl, glibc, installer and reboot behaviour. ([08](docs/08-testing.md))
+
+## And on openccu-lite
+
+openccu-lite installs the same package, but has no ReGaHSS, runs your rc.d script inside a
+generated systemd unit, and runs your addon **as its own unprivileged user** by default. What
+changes for you:
+
+- write only to your own directories;
+- keep the pid file in `/run/addon-<id>/`;
+- log to the journal (stdout or `logger`);
+- take the session from the `X-Occulite-Session` header, confirmed by the box;
+- use the metadata API instead of ReGa for names and rooms;
+- let the box handle updates and firewall ports.
+
+[11](docs/11-openccu-lite.md) explains the platform, [12](docs/12-porting-to-openccu-lite.md) is
+the porting checklist, and [templates/PORTING-PROMPT.md](templates/PORTING-PROMPT.md) hands the
+job to a coding agent.
 
 ## Who wrote this
 

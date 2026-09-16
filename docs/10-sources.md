@@ -27,6 +27,30 @@ Repository: [eq-3/occu](https://github.com/eq-3/occu), the published parts of th
 - [arm-gnueabihf/packages-eQ-3/WebUI/lib/tcl8.2/homematic/homematic.tcl](https://github.com/eq-3/occu/blob/master/arm-gnueabihf/packages-eQ-3/WebUI/lib/tcl8.2/homematic/homematic.tcl): `::HomeMatic::Addon::AddConfigPage`, `GetAll`, the `hm_addons.cfg` format (`array get`).
 - Not on GitHub but read on the CCU3 firmware 3.89.8: `/bin/install_addon` (chroot installer), `/etc/init.d/S00InstallAddon` (runs it in `stop()`), `/etc/lighttpd/conf.d/proxy_normal.conf`, `/lib/tcl8.2/homematic/homematic.tcl`, `/lib/libfirewall.tcl`, `/www/config/cp_software.cgi`, `/www/config/cp_maintenance.cgi`.
 
+## openccu-lite
+
+Repository: [hobbyquaker/openccu-lite](https://github.com/hobbyquaker/openccu-lite).
+Chapters [11](11-openccu-lite.md) and [12](12-porting-to-openccu-lite.md) were read from its
+sources and its addon documentation in September 2026 (`1.0.0-dev.1`), and checked on an x86_64
+OVA and a Raspberry Pi 4:
+
+- the addon unit generator and the rc.d wrapper;
+- occulited's addon policy (the confinement drop-in), its CGI runner, the ReGa and ELF scans,
+  and the menu parser;
+- the lighttpd session gate;
+- the `tclrega.so` shim;
+- the metadata, system and auth API references;
+- the addon catalogue format.
+
+Ported addons that show the result:
+
+- RedMatic 9.4+ (header login for the Node-RED editor, `/api/auth/v1/login`, the journal as a
+  log fallback);
+- ccu-addon-mosquitto 2.1.2+2 (pid file and log paths when not root);
+- Homematic Manager (header auth, a data directory outside the addon tree, an admin-only
+  settings page);
+- hm2mqtt.js (the metadata provider next to the ReGa one).
+
 ## Example addons
 
 - [homematic-community/ccu-addon-mosquitto](https://github.com/homematic-community/ccu-addon-mosquitto): Mosquitto 2.1, source build in Alpine containers, patchelf, settings page with listeners, TLS, users, bridges, firewall, persistence on USB, self-update, e2e and parser tests, automatic releases. Its `roadmap-archive/` records every finding with dates.

@@ -1,7 +1,7 @@
 # Agent instructions for ADDON-NAME
 
 ADDON-NAME packages PROGRAM as an addon for the Homematic CCU3 / OpenCCU (formerly
-RaspberryMatic) smart-home central. The build output is one `.tar.gz` addon package per
+RaspberryMatic) / openccu-lite smart-home central. The build output is one `.tar.gz` addon package per
 architecture (armv7l, aarch64, x86_64), installed on the CCU under `/usr/local/addons/ADDON`.
 
 **Read `ROADMAP.md` before making changes.** Completed tasks live in `roadmap-archive/` (one
@@ -33,5 +33,9 @@ https://github.com/homematic-community/ccu-addon-howto.
 - No `LD_LIBRARY_PATH` anywhere: bundled binaries use their patched RPATH.
 - Every CGI that reads or changes configuration checks the CCU session (`lib/session.tcl`).
 - Keep the package small; no web frameworks in `www/`.
-- Test on all three firmwares before calling a change done; the container test is not enough.
+- openccu-lite (no ReGa, systemd, the addon confined as `addon-ADDON`): detect it with
+  `VARIANT=lite` in `/VERSION`, write only to the addon's own paths, keep the pid file in
+  `/run/addon-ADDON/`, do not assume `/var/log/messages`, hide the self-updater, and use no ReGa
+  call except the session check (handbook chapters 11 and 12).
+- Test on all firmwares before calling a change done; the container test is not enough.
 - Lab test systems, their addresses and credentials stay out of the repo, the wiki and issues.
