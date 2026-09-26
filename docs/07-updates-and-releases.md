@@ -24,7 +24,7 @@
 
 ## Self-update from the settings page
 
-Both addons implement one-click updates (RedMatic task 11, Mosquitto task 5). The pattern:
+Both addons implement one-click updates. The pattern:
 
 1. `update.cgi?cmd=start&sid=...` starts a worker detached from lighttpd:
    `exec /usr/bin/setsid /bin/sh -c "$WORKER >/dev/null 2>&1 </dev/null" &`, otherwise the CGI
