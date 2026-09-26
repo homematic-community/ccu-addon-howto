@@ -29,14 +29,17 @@ grep -rnE 'dom\.(GetObject|CreateObject|DeleteObject)|rega_script|tclrega|:8181|
   - Put the architecture in the asset name (`<name>-<arch>-<version>.tar.gz`) and publish a
     `.sha256` sibling ([07](07-updates-and-releases.md)).
   - An `armv7l` asset is never chosen on openccu-lite: its ARM images are 64-bit.
-  - Build native `.node` modules per architecture. The box disables an addon whose programs
+  - Build native `.node` modules per architecture. The system disables an addon whose programs
     cannot run on it.
-- **The version inside the package must equal the release tag.** Otherwise the box offers the
+- **The version inside the package must equal the release tag.** Otherwise the system offers the
   same update forever.
 - **A pure shell, Tcl or JS addon** needs one package and no ELF work.
-- **Ship `openccu-lite.ok`** (an empty file) in `/usr/local/addons/<id>/` once the port is done.
-  Without it, the ReGa scan may disable your addon after a switch, because your CCU code path is
-  still in it.
+- **Ship a manifest, `openccu-lite.json`, at the root of the tarball** (beside `update_script`)
+  once the port is done: what the addon is, where its releases are, and what it needs at runtime
+  (step 7). The CCU3 and OpenCCU ignore it. A manifest without `requires.rega: true` also says
+  "runs without ReGa", so the ReGa scan does not disable your addon after a switch although your
+  CCU code path is still in it. Without a manifest, the empty marker file `openccu-lite.ok` in
+  `/usr/local/addons/<id>/` says the same.
 - **No systemd unit files, no `.service` in the package.** They are ignored.
 
 ## Step 2: `update_script`
@@ -60,10 +63,14 @@ grep -rnE 'dom\.(GetObject|CreateObject|DeleteObject)|rega_script|tclrega|:8181|
   fi
   ```
 - **`Config-Url`.** If your `Config-Url` is not your settings page, write the right one when
-  `VARIANT=lite`.
-- **`ln -sf` over `rc.d/<id>`** is fine: the box adopts the new script again.
-- **Firewall.** Do not touch `firewall.conf` or `iptables` on openccu-lite. Ports are
-  declared in the catalogue (step 7).
+  `VARIANT=lite`, or name it in the manifest's `ui.settings_url`.
+- **`ln -sf` over `rc.d/<id>`** is fine: the system adopts the new script again.
+- **Firewall.** Do not touch `firewall.conf` or `iptables` on openccu-lite (there is no
+  `libfirewall`). Ports are declared in the manifest (step 7).
+- **A lighttpd fragment** for your own server: ship it as `etc/lighttpd.conf` in your addon's
+  tree. Keep linking or copying it into `/usr/local/etc/config/lighttpd/` for the CCU; on
+  openccu-lite the system writes its own validated copy there and your script must not
+  ([11](11-openccu-lite.md#how-pages-are-served)).
 
 ## Step 3: the rc.d script
 
@@ -75,10 +82,13 @@ grep -rnE 'dom\.(GetObject|CreateObject|DeleteObject)|rega_script|tclrega|:8181|
 - **`stop`** must really stop the daemon. The cgroup cleans up after it, but a clean shutdown
   (a flushed database) is still your job.
 - **`info` stays as it is.** It is cheap and is called often.
-- **`uninstall`** still runs as root today; do not rely on that. Remove only what you created:
-  the button, the www link, your lighttpd drop-in, your `nav.d` file.
+- **`uninstall`** runs as the addon user when the addon is confined, as root otherwise. Remove
+  only what you created: the button, the www link, your lighttpd drop-in, your `nav.d` file, and
+  let a failed removal pass. After a confined addon's `uninstall` the system removes the www link,
+  its copy of your lighttpd fragment and your emptied directories itself.
 - **Wait for the network after boot, CCU3 only.** Skip the wait on openccu-lite: the unit
-  already starts after the network and the radio daemons.
+  already starts after the network, and after the radio daemons unless the manifest says
+  otherwise (`needs`, `start`).
 - **Don't raise `oom_score_adj` by writing to `/proc`.** A confined user may not write it; the
   unit already sets 100. Guard the write, or skip it on openccu-lite.
 
@@ -97,11 +107,12 @@ item:
 | reads other root files (`/etc/config/*.uuid`, `/etc/shadow`, …) | redesign, or declare `root` |
 | binds a port < 1024 | `capabilities: ["CAP_NET_BIND_SERVICE"]`, or use a high port |
 | opens a serial or USB device | `groups: ["dialout"]` (or the device's group) |
-| changes the firewall | show the state and link the box's firewall page instead; declare `ports` |
-| calls `chown`, `mount`, `iptables`, `ip link` | root only. Avoid it, or declare `root: true` |
+| changes the firewall | show the state and point to the system's firewall settings instead; declare `ports` |
+| calls `chown`, `iptables`, `ip link` | root only. Avoid it, or declare `root: true` |
+| calls `mount` | not even as root. Avoid it; only if there is no other way, `root: true` plus `capabilities: ["CAP_SYS_ADMIN"]` |
 | runs `journalctl` | not as the addon user (step 6) |
 | installs cron or monit files | cron runs as root and monit does not exist; keep scheduling and supervision inside the daemon |
-| patches the read-only root | stop. It is not allowed on openccu-lite |
+| patches the read-only root | stop. It is not allowed on openccu-lite. Device descriptions go to `/firmware/rftypes`, which is writable there, with no remount |
 
 Aim for no `root`. Test with the addon confined: that is the default for every new install.
 
@@ -121,7 +132,7 @@ Aim for no `root`. Test with the addon confined: that is the default for every n
   - never trust the header on a CCU.
   - For Node-RED, use `adminAuth.tokenHeader: 'x-occulite-session'`.
 - **Pass `?sid=` on only where it arrived.** A page opened without `?sid=` (after
-  `header_since`) must work without it, so don't fail on a missing `sid` when the header is
+  `ui.session_header`) must work without it, so don't fail on a missing `sid` when the header is
   there.
 - **No ReGa scripts in CGIs** other than the session check. The shim raises a Tcl error for
   anything else.
@@ -129,12 +140,15 @@ Aim for no `root`. Test with the addon confined: that is the default for every n
   your own server or to a status file that the page polls.
 - **Logins.** If your addon logs users in against the CCU (ReGa user objects, UDP 1998), switch
   to `POST /api/auth/v1/login` on openccu-lite.
-- **Frontend.** Keep its proxied path under `/addons/`. Add a `nav.d/<id>.json` if your lighttpd
-  drop-in is not a plain `proxy.server` mapping. Honour `?theme=` and `?lang=` and the
+- **Frontend.** Keep its proxied path under `/addons/`, and keep the lighttpd fragment inside
+  what the system accepts (proxying to this system only, no `include`, no `cgi.*`, no
+  `$SERVER["socket"]`). Add a `nav.d/<id>.json` if your fragment is not a plain `proxy.server`
+  mapping. Honour `?theme=` and `?lang=` and the
   `openccu-lite:theme` message if you can. Allow same-origin framing.
 - **Hide the self-updater on openccu-lite** (button, notice, modal). Show one line such as
   "Updates are installed from the openccu-lite Addons page" with a link to `/addons`. Make the
-  updater's start command answer `403` with the same text. `update_check.cgi` may stay.
+  updater's start command answer `403` with the same text. `update_check.cgi` may stay. A release
+  that still carries its own updater sets `ui.own_updater: true`.
 
 ## Step 6: logs
 
@@ -147,17 +161,32 @@ Aim for no `root`. Test with the addon confined: that is the default for every n
   - Root addons can call `journalctl -u addon-<id>.service` directly.
 - **"Last error" displays** must not assume `/var/log/messages` exists.
 
-## Step 7: the catalogue entry
+## Step 7: the manifest and the catalogue entry
 
-Ask the openccu-lite addon catalogue to list your addon, and give the maintainers:
+Write `openccu-lite.json` ([11](11-openccu-lite.md#the-manifest-and-the-catalogue), the format in
+[manifest-format.md](https://github.com/hobbyquaker/occulited/blob/master/docs/manifest-format.md)):
 
-- `id`, the names and descriptions in German and English, homepage, repository, licence;
-- the architectures, and the release asset pattern;
-- **the `runtime` block**: `needs`, `ports` with `port_info`, `data_dirs`, `paths`, `groups`,
-  `capabilities`, `api_scopes`, `settings_url` if needed, and `session.header_since` once step 5
-  shipped. Leave `root` out unless there is no other way.
+- `format`, `id` (the rc.d name), `name` and `description` in German and English, `homepage`,
+  `licence`;
+- `release`: the GitHub repository and the asset pattern with `{arch}` and `{version}`;
+- `requires.architectures`;
+- `ui`: `icon` and `logo` inside the package, `settings_url` if needed, `session_header: true`
+  once step 5 shipped, `own_updater` if you keep an updater;
+- **the `runtime` block**: `needs`, `start: "early"` only when the addon retries within seconds
+  without error lines, `daemon`, `ports` with `port_info`, `data_dirs`, `paths`, `groups`,
+  `capabilities`, `api_scopes`, and a `note` saying why and what the addon contacts outside the
+  system. Leave `root` out unless there is no other way.
 
-An addon without a `runtime` block is shown as "undeclared".
+Validate it with
+[manifest.schema.json](https://github.com/hobbyquaker/occulited/blob/master/docs/manifest.schema.json)
+(`npx ajv validate -s manifest.schema.json -d openccu-lite.json`). An addon without a `runtime`
+block is shown as "undeclared".
+
+To be listed in the catalogue, open a pull request against
+[occulited's `catalog/catalog.json`](https://github.com/hobbyquaker/occulited/blob/master/catalog/catalog.json)
+with one entry: `{"git": "<your repository>", "manifest": "<path of openccu-lite.json in it>"}`
+([catalog-format.md](https://github.com/hobbyquaker/occulited/blob/master/docs/catalog-format.md)).
+The system reads the manifest at your latest release tag, so release once after adding it.
 
 ## Step 8: names, rooms and functions (metadata addons only)
 
@@ -166,7 +195,7 @@ Keep the ReGa provider and add a second one with the **same public surface**:
 1. **Detection** at start and on reconnect: `GET http://127.0.0.1/api/meta/v1/version`.
    - A JSON answer with `"api":"meta"` means openccu-lite.
    - A 404 or HTML answer means a CCU: stop probing.
-   - A refused connection or a timeout means the box is still booting: retry once a minute.
+   - A refused connection or a timeout means the system is still booting: retry once a minute.
 2. **Load `GET /snapshot`**, then follow `GET /events/sse?since=<revision>`.
    - Reload the snapshot on an `import` or `resync` event.
    - The stream opens with `: connected` and sends a heartbeat every 30 s.
@@ -177,16 +206,21 @@ Keep the ReGa provider and add a second one with the **same public surface**:
    - Build the flat name lists your users already see, and keep your output shape unchanged.
    - Treat enum ids as data.
 5. **Credentials.**
-   - On the box, read `/usr/local/etc/occulite/local-token` (`meta:read`) by default.
+   - On the system, read `/usr/local/etc/occulite/local-token` (`meta:read`) by default.
    - For writes (`PATCH /objects/{ref}`, your `meta.<id>` namespace), use the user's session or
      a token with `meta:write`: your own from `api_scopes`, or one the user created.
-   - Off the box, use a token option.
+   - Off the system, use a token option.
    - A `401` means run without names and log it once; never crash.
 6. **ReGa-only features** (system variables, programs, scripts) stay accepted in the
-   configuration, log one line on openccu-lite ("not available on this box"), and are
+   configuration, log one line on openccu-lite ("not available on this system"), and are
    documented as CCU-only.
 
-The full API reference is in the [openccu-lite repository](https://github.com/hobbyquaker/openccu-lite).
+The full API reference is [meta-api.md](https://github.com/hobbyquaker/occulited/blob/master/docs/meta-api.md)
+in the occulited repository, the mapping from ReGa and what has no replacement are
+[porting-from-rega.md](https://github.com/hobbyquaker/openccu-lite/blob/main/docs/porting-from-rega.md)
+in the openccu-lite repository, and occulited's
+[`fixtures/`](https://github.com/hobbyquaker/occulited/tree/master/fixtures) are the conformance
+corpus to test a reader against.
 
 ## Step 9: test
 
@@ -194,7 +228,7 @@ The full API reference is in the [openccu-lite repository](https://github.com/ho
 - **Container test** ([08](08-testing.md)): add a variant with `VARIANT=lite` and `LITE=…` in
   `/VERSION` and without `/var/log/messages`. Run the service as a non-root user with only the
   confined writable paths writable, and send the session header through a fake `/api/auth/v1/state`.
-- **On an openccu-lite box:**
+- **On an openccu-lite system:**
   - install through the Addons page, confined;
   - `systemctl status addon-<id>.service`;
   - `journalctl -u addon-<id>.service`: no `EROFS`, `EACCES` or `226/NAMESPACE` errors;
@@ -205,7 +239,7 @@ The full API reference is in the [openccu-lite repository](https://github.com/ho
   - a reboot;
   - uninstall;
   - an OpenCCU backup restored onto openccu-lite with your addon in it.
-- **Report** what you verified on which box, and what only passed in the container.
+- **Report** what you verified on which system, and what only passed in the container.
 
 ## Step 10: document
 
@@ -215,6 +249,6 @@ Add an "openccu-lite" section to your README:
 - what does not (ReGa features);
 - which ports the user must open;
 - where the token comes from (metadata addons);
-- that updates come from the box's Addons page.
+- that updates come from the system's Addons page.
 
 Add a changelog entry. A port is a minor version: nothing is removed.

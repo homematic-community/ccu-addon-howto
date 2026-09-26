@@ -70,9 +70,10 @@ changes for you:
 - write only to your own directories;
 - keep the pid file in `/run/addon-<id>/`;
 - log to the journal (stdout or `logger`);
-- take the session from the `X-Occulite-Session` header, confirmed by the box;
+- take the session from the `X-Occulite-Session` header, confirmed by the system;
 - use the metadata API instead of ReGa for names and rooms;
-- let the box handle updates and firewall ports.
+- describe the addon and what it needs in a manifest, `openccu-lite.json`;
+- let the system handle updates and firewall ports.
 
 [11](docs/11-openccu-lite.md) explains the platform, [12](docs/12-porting-to-openccu-lite.md) is
 the porting checklist, and [templates/PORTING-PROMPT.md](templates/PORTING-PROMPT.md) hands the

@@ -85,8 +85,10 @@ Everything on this list cost real hours in 2026:
 - openccu-lite: a confined addon cannot write `/var/run/<name>.pid`, `/usr/local/etc/config`,
   or a `/tmp` file another user created first (`protected_regular`); there is no
   `/var/log/messages`; the `tclrega.so` shim answers only the session check; a foreground
-  `start` blocks the unit; `X-Occulite-Session` is trusted only after `/api/auth/v1/state`
-  confirmed it, and never on a CCU ([11](11-openccu-lite.md)).
+  `start` blocks the unit; even a root addon cannot `mount -o remount,rw /` (write device
+  descriptions to `/firmware/rftypes`, which is writable); a unit file in the addon is ignored,
+  the manifest `openccu-lite.json` declares what the unit gets; `X-Occulite-Session` is trusted
+  only after `/api/auth/v1/state` confirmed it, and never on a CCU ([11](11-openccu-lite.md)).
 - In a test container pid 1 must reap (`docker run --init`), and `ldconfig` ignores libraries
   whose names do not start with `lib` (a stub `tclrega.so` belongs into `/usr/lib`).
 

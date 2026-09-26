@@ -2,7 +2,7 @@
 
 *For addon maintainers. Open your coding agent (Claude Code, Codex, Copilot agent mode, …) in
 your addon's repository and paste everything below the line. Replace `<ADDON>` and `<ID>`
-(the name of the rc.d script). Written for openccu-lite `1.0.0-dev.1` (September 2026); check
+(the name of the rc.d script). Written for openccu-lite `1.0.0-dev.28` (September 2026); check
 [chapter 11](../docs/11-openccu-lite.md) for changes before you use it.*
 
 ---
@@ -24,7 +24,17 @@ Read these in full before changing anything:
 3. [docs/12-porting-to-openccu-lite.md](https://github.com/homematic-community/ccu-addon-howto/blob/master/docs/12-porting-to-openccu-lite.md): the porting checklist. **Follow it step by step.**
 4. [templates/lib/session.tcl](https://github.com/homematic-community/ccu-addon-howto/blob/master/templates/lib/session.tcl): the session check with the openccu-lite header path.
 
-The openccu-lite project itself is https://github.com/hobbyquaker/openccu-lite.
+The openccu-lite project itself is https://github.com/hobbyquaker/openccu-lite; its system
+service is https://github.com/hobbyquaker/occulited. The normative references, read the ones
+that apply:
+
+- the manifest: https://github.com/hobbyquaker/occulited/blob/master/docs/manifest-format.md and
+  its schema `docs/manifest.schema.json` beside it;
+- the catalogue: https://github.com/hobbyquaker/occulited/blob/master/docs/catalog-format.md;
+- the metadata API: https://github.com/hobbyquaker/occulited/blob/master/docs/meta-api.md;
+- the system and auth APIs: https://github.com/hobbyquaker/occulited/blob/master/docs/system-api.md;
+- the ReGa mapping, and what has no replacement:
+  https://github.com/hobbyquaker/openccu-lite/blob/main/docs/porting-from-rega.md.
 
 Then read this repository: its `AGENTS.md`/`CLAUDE.md` if any, the build scripts,
 `update_script`, the rc.d script, the CGIs and the daemon's start code.
@@ -39,13 +49,15 @@ Then read this repository: its `AGENTS.md`/`CLAUDE.md` if any, the build scripts
    - No new mandatory configuration.
 3. **No user configuration may break.** ReGa-only options stay accepted. On openccu-lite they
    log one line and do nothing.
-4. **Only the session check may use ReGa.** The box's `tclrega.so` shim answers
+4. **Only the session check may use ReGa.** The system's `tclrega.so` shim answers
    `system.GetSessionVarStr` and nothing else. Do not add other ReGa calls.
-5. **Never trust `X-Occulite-Session` without asking the box.** Use it only when `VARIANT=lite`,
+5. **Never trust `X-Occulite-Session` without asking the system.** Use it only when `VARIANT=lite`,
    and accept it only after `GET http://127.0.0.1/api/auth/v1/state` with
    `Authorization: Bearer <value>` answers `authenticated: true` with the same `sid`.
-6. **No systemd unit files, no `iptables`, no writes to the read-only root, no new root
-   requirements.** What the daemon needs is declared in the catalogue entry's `runtime` block.
+6. **No systemd unit files, no `iptables`, no writes to the read-only root, no `mount`, no new
+   root requirements.** What the daemon needs is declared in the `runtime` block of the
+   addon's manifest `openccu-lite.json`. Device descriptions go to `/firmware/rftypes`, which is
+   writable on openccu-lite without a remount.
 7. **Tcl stays 8.2-compatible** and shell stays POSIX `sh` (busybox ash), because the CCU3 still
    runs this code.
 
@@ -61,24 +73,29 @@ Work through chapter 12 in order. Make one commit per step, and explain why in e
    - Build one asset per `uname -m` (`aarch64`, `x86_64`, plus `armv7l` for the stock CCU3),
      with the architecture in the file name and a `.sha256` sibling.
    - The package version must equal the release tag.
-   - Ship an empty `openccu-lite.ok` in the addon directory.
+   - Put `openccu-lite.json` at the root of the tarball, beside `update_script` (step 12). It
+     replaces the `openccu-lite.ok` marker.
    - Refuse a wrong architecture with exit 13.
 3. **`update_script`.**
    - Create every directory the daemon writes to.
    - Keep the CCU start logic.
    - On openccu-lite, optionally start through `systemctl start addon-<ID>.service`.
-   - Write the right `Config-Url`.
+   - Write the right `Config-Url` (or name the settings page in `ui.settings_url`).
    - Don't touch the firewall.
+   - Ship a lighttpd fragment as `etc/lighttpd.conf` in the addon's tree; on openccu-lite do not
+     link or copy it into `/usr/local/etc/config/lighttpd/`, the system writes a validated copy.
 4. **rc.d script.**
    - `start` backgrounds the daemon and returns.
    - The pid file goes to `/run/addon-<ID>/` (or the addon directory) when not root.
    - Skip boot-time network waits and `/proc/*/oom_score_adj` writes on openccu-lite.
-   - `uninstall` removes only what the addon created.
+   - `uninstall` removes only what the addon created, and tolerates a failed removal: on
+     openccu-lite it runs as the addon user when the addon is confined.
 5. **Confinement.**
    - List every path the daemon, the CGIs and the helper scripts write or read outside the
      addon directory, every port, every device and every root-only operation.
-   - Fix each one in code, or put it in the `runtime` block you propose (`data_dirs`, `paths`,
-     `groups`, `capabilities`, `ports` + `port_info`, `needs`).
+   - Fix each one in code, or put it in the manifest's `runtime` block (`data_dirs`, `paths`,
+     `groups`, `capabilities`, `ports` + `port_info`, `needs`, `daemon`, `note`; `start: "early"`
+     only when the addon retries within seconds and logs no errors while it waits).
    - Aim for no `root`.
    - Use no shared `/tmp` files; use `/run/addon-<ID>/`.
 6. **Web UI.**
@@ -87,12 +104,14 @@ Work through chapter 12 in order. Make one commit per step, and explain why in e
    - If the addon has its own HTTP server, give it the same header check.
    - Pages must work without `?sid=` when the header is there, and still with `?sid=` on a CCU.
    - No streaming CGIs.
-   - Keep the frontend proxy under `/addons/`. Add `nav.d/<ID>.json` if needed.
+   - Keep the frontend proxy under `/addons/`, proxying to this system only; no `include`,
+     `cgi.*` or `$SERVER["socket"]` in the fragment. Add `nav.d/<ID>.json` if needed.
    - Follow `?theme=`/`?lang=` if feasible.
 7. **Self-updater.**
    - On openccu-lite, hide the update button, notice and modal, and show one line that points
-     to the box's Addons page (`/addons`).
+     to the system's Addons page (`/addons`).
    - The updater's start command answers 403 with that text.
+   - A release that still carries its updater sets `ui.own_updater: true`.
    - `update_check.cgi` may stay.
 8. **Logs.**
    - Log to stdout, stderr or `logger`, not to growing files.
@@ -114,16 +133,19 @@ Work through chapter 12 in order. Make one commit per step, and explain why in e
     - Add provider tests against a fake `/api/meta/v1` for metadata addons.
 11. **Docs.**
     - An "openccu-lite" section in the README: what works, what does not, the ports to open,
-      that updates come from the box's Addons page.
+      that updates come from the system's Addons page.
     - A changelog entry (minor version).
-12. **Catalogue proposal.** Write `docs/openccu-lite-catalog-entry.json` with `id`, names and
-    descriptions (de/en), homepage, repository, licence, architectures, the release asset
-    pattern and the full `runtime` block. Add `session.header_since` set to the version that
-    ships step 6. The maintainer submits it to the openccu-lite addon catalogue.
+12. **Manifest and catalogue.** Write `openccu-lite.json` where the packaging copies it to the
+    root of the tarball: `format`, `id`, names and descriptions (de/en), homepage, licence,
+    `release` (repository and asset pattern), `requires.architectures`, `ui` (icon, logo,
+    `settings_url` if needed, `session_header: true` once step 6 ships) and the full `runtime`
+    block. Validate it against `manifest.schema.json`. Draft the catalogue entry
+    `{"git": "<repository>", "manifest": "<path of openccu-lite.json>"}` for the maintainer, who
+    opens the pull request against occulited's `catalog/catalog.json`.
 
-## How to verify on a box
+## How to verify on a system
 
-If the maintainer has an openccu-lite box, give them this checklist; do not claim you ran it:
+If the maintainer has an openccu-lite system, give them this checklist; do not claim you ran it:
 
 - install through the Addons page, confined;
 - `systemctl status addon-<ID>.service`;
@@ -142,8 +164,8 @@ When you are done, report:
 
 - the triage result;
 - every file you changed, and why;
-- the proposed `runtime` block, with a reason for each entry;
-- what you verified, and where (unit tests, container, real box);
+- the manifest's `runtime` block, with a reason for each entry;
+- what you verified, and where (unit tests, container, real system);
 - what you could not verify;
 - open questions for the maintainer.
 

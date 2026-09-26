@@ -2,19 +2,32 @@
 
 [openccu-lite](https://github.com/hobbyquaker/openccu-lite) is a Homematic CCU firmware built
 from OpenCCU **without ReGaHSS**. It keeps the radio stack (`rfd`, `hs485d`, `HMIPServer`) and
-replaces init scripts and busybox services with **systemd**. A Go service, `occulited`, handles
-device names, rooms and functions, logins, system administration and addon management. There is
-no built-in WebUI. The user picks a frontend (Homematic Manager, Node-RED via RedMatic, …) and
-installs it as an addon.
+replaces init scripts and busybox services with **systemd**. A Go service,
+[`occulited`](https://github.com/hobbyquaker/occulited), handles device names, rooms and
+functions, logins, system administration and addon management. There is no built-in WebUI. The
+user picks a frontend (Homematic Manager, Node-RED via RedMatic, …) and installs it as an addon.
 
 This chapter describes openccu-lite as an addon platform: what is the same as on OpenCCU, what
 is different, and what is gone. [12](12-porting-to-openccu-lite.md) turns this into a porting
 checklist. [templates/PORTING-PROMPT.md](../templates/PORTING-PROMPT.md) is the same checklist
 as a prompt for a coding agent.
 
-**Status: September 2026, openccu-lite `1.0.0-dev.1`.** The project is not released yet.
-Everything below was read from the code and checked on lab boxes (x86_64 OVA, Raspberry Pi 4)
-unless it is marked *planned*. The list at the end names what may still change.
+**Status: September 2026, openccu-lite `1.0.0-dev.28`,** the first public release (a
+pre-release for test systems, [releases](https://github.com/hobbyquaker/openccu-lite/releases)).
+Everything below was read from the code and the documents of that release; the first version of
+this chapter (`1.0.0-dev.1`) was also checked on test systems (x86_64 OVA, Raspberry Pi 4). The
+list at the end names what may still change.
+
+**The references this chapter summarises** (normative where they say so):
+
+| Document | What it defines |
+| --- | --- |
+| [occulited `docs/manifest-format.md`](https://github.com/hobbyquaker/occulited/blob/master/docs/manifest-format.md) and [`manifest.schema.json`](https://github.com/hobbyquaker/occulited/blob/master/docs/manifest.schema.json) | the addon manifest `openccu-lite.json` |
+| [occulited `docs/catalog-format.md`](https://github.com/hobbyquaker/occulited/blob/master/docs/catalog-format.md) | the addon catalogue |
+| [occulited `docs/meta-api.md`](https://github.com/hobbyquaker/occulited/blob/master/docs/meta-api.md) and [`meta-format.md`](https://github.com/hobbyquaker/occulited/blob/master/docs/meta-format.md) | the metadata API: names, rooms, functions |
+| [occulited `docs/system-api.md`](https://github.com/hobbyquaker/occulited/blob/master/docs/system-api.md) | the system and auth APIs, lite-rpc, the addon CGIs, the embedding contract |
+| [openccu-lite `docs/addons.md`](https://github.com/hobbyquaker/openccu-lite/blob/main/docs/addons.md) | addons on the system: the ReGa and architecture checks, confinement, the start/stop wrapper |
+| [openccu-lite `docs/porting-from-rega.md`](https://github.com/hobbyquaker/openccu-lite/blob/main/docs/porting-from-rega.md) | the mapping from ReGa to the metadata API, and what has no replacement |
 
 ## Platform at a glance
 
@@ -24,7 +37,7 @@ unless it is marked *planned*. The list at the end names what may still change.
 | Init | busybox init, `/etc/init.d/S*` | systemd, journald, udevd |
 | ReGaHSS, HM-Script, system variables, programs | yes | **no** |
 | WebUI (`/webui`, `/config/*.cgi`, `/api/homematic.cgi`) | yes | **no**. The shell at `/` is occulited's admin UI |
-| Addon package format | `.tar.gz` + `update_script` | **unchanged** |
+| Addon package format | `.tar.gz` + `update_script` | **unchanged**, plus an optional manifest `openccu-lite.json` at the root of the tarball |
 | rc.d script | run by `run-parts` | run inside a **generated unit** `addon-<id>.service` |
 | Addon runs as | root | its **own user** `addon-<id>` by default (confined) |
 | Logs | `/var/log/messages` | **journal only**; no `/var/log/messages`, no syslogd |
@@ -32,8 +45,8 @@ unless it is marked *planned*. The list at the end names what may still change.
 | `tclrega.so` | real ReGa client | a **shim** that answers the session check and nothing else |
 | Node.js, Python | no | no. Ship your own runtime |
 | monit, `checkAddonUpdates.sh`, `updateAddonConfig.tcl` | yes | no |
-| Firewall default | `MOST_OPEN` | `RESTRICTIVE`; addon ports are opened per port by the user |
-| Radio interfaces | 2001/2000/2010 via lighttpd, plus the daemons' own ports | **loopback only**: `rfd` 127.0.0.1:32001, `hs485d` :32000, `HMIPServer` :32010 |
+| Firewall | `firewall.conf` via `libfirewall.tcl`, default `MOST_OPEN` | occulited's own rule list, default policy **DROP** on a fresh system; `libfirewall` is not in the image. Addon ports are switches the user opens |
+| Radio interfaces | 2001/2000/2010 via lighttpd, plus the daemons' own ports | **loopback only**: `rfd` 127.0.0.1:32001, `hs485d` :32000, `HMIPServer` :32010. The daemons run as their own users (`rfd`, `hs485d`, `hmipserver`). Classic RPC from the LAN is an opt-in; lite-rpc (`/api/rpc/v1`) is the API way |
 
 **Detection.** `/VERSION` keeps OpenCCU's `VERSION`, `PRODUCT` and `PLATFORM` lines and adds
 `VARIANT=lite` and `LITE=<version>`. Use `grep -qx 'VARIANT=lite' /VERSION` in shell and
@@ -46,24 +59,30 @@ installed on OpenCCU therefore come along. On the first boot after a switch, occ
 
 - **disables addons that use ReGa.** It has a built-in list (CUxD, XML-API, Programmdrucker,
   E-Mail, Sonos, HM-Script runners) and scans the addon's own files for idioms such as
-  `dom.GetObject`, `dom.CreateObject`, `:8181/`, `rega.exe`, `hmscript`, `ivtype`;
+  `dom.GetObject`, `dom.CreateObject`, `:8181/`, `rega.exe`, `hmscript`, `ivtype`. An addon is
+  exempt when it is in the catalogue, when its manifest does not say `requires.rega: true`, or
+  when it carries the marker file `openccu-lite.ok`;
 - **disables addons whose binaries cannot run here.** It reads the ELF header of every file in
-  the addon directory and its www directory, `node_modules` included.
+  the addon directory and its www directory, `node_modules` included. Nothing exempts from this
+  check.
 
 In both cases "disabled" means the rc.d script loses its executable bit. The user can turn the
-addon back on.
+addon back on. An addon disabled for its binaries and known to the catalogue gets a *Reinstall
+from the catalogue* button.
 
 ## Installation and the generated unit
 
 Upload, catalogue install and catalogue update all end in the same place: OpenCCU's
 `/bin/install_addon`, which runs your `update_script HM-RASPBERRYMATIC` as root, exactly as in
 [02](02-package-and-install.md) (stdout discarded, exit 0 / 10 / 13 / 101–106).
-`update_script` runs as root in a transient scope, never confined. occulited logs the install
-and uninstall to the journal as `addon-install`.
+`update_script` runs as root in a transient scope, never confined. occulited writes the
+script's output to the journal as `addon-install`.
 
-After `update_script` returns, occulited:
+**Before** `update_script` runs, occulited reads `openccu-lite.json` from the root of the archive
+(below). **After** it returns, occulited applies the manifest to the addon whose rc.d entry the
+install created or changed, then:
 
-1. regenerates the units;
+1. puts its start/stop wrapper in front of the rc.d script again and regenerates the units;
 2. if `update_script` started your daemon, stops it and starts it again **inside**
    `addon-<id>.service`, so the unit tracks it;
 3. gives the addon's directories back to the addon user if the addon is confined.
@@ -72,6 +91,11 @@ A systemd generator writes one unit per executable `/usr/local/etc/config/rc.d/<
 `run-parts` name rules, nothing in safe mode):
 
 ```ini
+[Unit]
+After=network.target lighttpd.service occulited.service occu-addons.service <needs>
+PartOf=addons.target
+Before=addons.target
+
 [Service]
 Type=oneshot
 RemainAfterExit=yes
@@ -91,13 +115,23 @@ Your rc.d script therefore keeps its contract from [03](03-rc-script.md):
 - `stop` stops the daemon;
 - the cgroup catches whatever was left behind.
 
-`init` still runs as root at boot. Units start after the network, lighttpd, occulited and,
-unless the addon declares otherwise, `rfd` and `HMIPServer`.
+**When a unit starts** follows the manifest's `runtime` block:
+
+- undeclared: after `rfd` and `HMIPServer`, whose RPC answers once their units are active;
+- `needs: []`: right after the network, the web server and occulited (a broker, a web page);
+- `needs: ["rfd"]` and the like: after exactly those interface processes;
+- `start: "early"`: before the interface processes, which the unit only *wants*. Declare it only
+  when the addon retries within seconds and logs no errors while it waits. The user can switch
+  the early start off, globally and per addon.
+
+Units are not ordered against each other; addons start side by side.
+
+**`init`** runs at boot as on a CCU. For a root addon it runs as root; for a confined addon it
+runs as the addon user in its unit, right before `start`.
 
 **Do not ship a systemd unit.** A `.service` file or drop-in inside your addon directory is
 ignored, and the journal says so. The addon user owns that directory, so a unit file there
-would let the addon grant itself root. What the daemon needs goes into the catalogue entry
-(below).
+would let the addon grant itself root. What the daemon needs goes into the manifest (below).
 
 **Start/stop buttons keep working.** occulited moves your script to `rc.d/<id>.script` and puts a
 wrapper in its place as `rc.d/<id>`:
@@ -106,7 +140,8 @@ wrapper in its place as `rc.d/<id>`:
   CGI, become `systemctl <action> addon-<id>.service`;
 - when the caller is the addon user, the wrapper sends a request to occulited with the addon's
   control token (`/run/occulite/addon-tokens/<id>`) instead;
-- every other command passes through unchanged.
+- every other command passes through unchanged. For a confined addon, `info` and `uninstall`
+  run as the addon user.
 
 If an update copies a fresh script over the wrapper, the script is adopted again after the
 install. You need not change anything for this.
@@ -120,8 +155,9 @@ By default an addon runs as `addon-<id>` (uid ≥ 30000, home `/usr/local/addons
 [Service]
 User=addon-<id>
 Group=addon-<id>
-SupplementaryGroups=certs <runtime.groups>
-AmbientCapabilities=<runtime.capabilities>      # empty bounding set when none are declared
+SupplementaryGroups=<runtime.groups> certs
+AmbientCapabilities=<runtime.capabilities>     # with CapabilityBoundingSet= the same list
+CapabilityBoundingSet=                          # empty when none are declared
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectKernelTunables=yes
@@ -142,7 +178,7 @@ What this means for your code:
   - your addon directory;
   - `/usr/local/etc/config/addons/<id>/`;
   - `/run/addon-<id>/`, owned by you: put the pid file there, **not** in `/var/run/<id>.pid`;
-  - whatever the catalogue entry grants.
+  - whatever the manifest declares.
 
   Everything else is read-only, `/usr/local/etc/config` included. A write elsewhere fails with
   `EROFS` or `EACCES` in the journal.
@@ -161,34 +197,56 @@ What this means for your code:
   starting, stopping and restarting its own unit (the wrapper above). An addon that really needs
   root declares it (`runtime.root`). The user can also switch any addon to root on the Services
   page, behind a warning that calls it unsafe.
+- **Root is not everything.** A root addon has no `CAP_SYS_ADMIN`: `mount -o remount,rw /`
+  answers *permission denied*. `/firmware/rftypes` is writable at boot anyway (an overlay on the
+  user partition), so device descriptions go there without a remount and survive firmware
+  updates. Only an addon that truly has to mount declares `capabilities: ["CAP_SYS_ADMIN"]` beside
+  `root: true`.
 - **Settings CGIs** run as the addon user too (see below), but without the unit's sandbox.
-- **Upgrades.** Addons that were already installed when a box moved to openccu-lite stay root
-  until the user confines them. A newly installed addon is confined. An addon without a
-  `runtime` block in the catalogue is confined **and** shown as "undeclared", so a user who sees
-  it fail knows where to look.
+- **Upgrades.** Addons that were already installed when a system moved to openccu-lite stay
+  root until the user confines them. A newly installed addon is confined. An addon without a
+  `runtime` block is confined **and** shown as "undeclared", so a user who sees it fail knows
+  where to look.
 
-**Not built yet, and not final:**
+## The manifest and the catalogue
 
-- root addons without `CAP_SYS_ADMIN`;
-- the radio daemons under users of their own, with device groups;
-- lighttpd drop-ins and www links taken as validated copies instead of followed symlinks;
-- `info`, `init` and `uninstall` of a confined addon running as the addon user instead of root.
+**An addon describes itself in one file, `openccu-lite.json`, at the root of its tarball**
+(beside `update_script`). The CCU3 and OpenCCU ignore it. At install and update occulited reads
+it out of the archive before `update_script` runs and applies it as declared; the accepted copy is
+kept root-owned outside the addon's directory. The file in your addon directory is never read
+again. The full format is
+[manifest-format.md](https://github.com/hobbyquaker/occulited/blob/master/docs/manifest-format.md);
+validate against [manifest.schema.json](https://github.com/hobbyquaker/occulited/blob/master/docs/manifest.schema.json).
 
-An addon that declares what it needs is not affected by any of these.
+```json
+{
+  "format": 1,
+  "id": "mosquitto",
+  "name": "Mosquitto",
+  "description": {"de": "Der MQTT-Broker …", "en": "The MQTT broker …"},
+  "homepage": "https://github.com/homematic-community/ccu-addon-mosquitto",
+  "licence": "EPL-2.0",
+  "release": {"github": "homematic-community/ccu-addon-mosquitto",
+              "asset": "mosquitto-{arch}-{version}.tar.gz"},
+  "requires": {"architectures": ["armv7l", "aarch64", "x86_64"]},
+  "ui": {"icon": "mosquitto/www/icon.svg", "session_header": true},
+  "runtime": {"daemon": true, "needs": [], "ports": [1883, 8883]}
+}
+```
 
-## The catalogue and the `runtime` block
-
-openccu-lite has an addon catalogue: a JSON index that the box downloads daily and shows on its
-Addons page. An entry is written by the catalogue maintainers, not shipped inside your package:
-
-- `id`: the rc.d name;
-- names and descriptions in German and English;
-- links and licence;
-- the architectures;
-- how to find the release asset: `release.github`, plus `release.asset` with `{arch}` and
-  `{version}`, or a per-arch `release.assets` map. A sibling `<asset>.sha256` is verified when
-  present, so publish one ([07](07-updates-and-releases.md));
-- a **`runtime` block**, which is what the box builds the unit from:
+- **Identity:** `format` (1), `id` (the rc.d name), `name`, `description`, `homepage`,
+  `licence`, an informational `version`. Texts are `{"de": …, "en": …}` or one string.
+- **`release`:** `github` (`owner/repo`), `asset` with `{arch}` and `{version}`, or a per-arch
+  `assets` map, and `fallback_asset` for an architecture-independent package. A sibling
+  `<asset>.sha256` is verified when present, so publish one ([07](07-updates-and-releases.md)).
+- **`requires`:** `architectures`, the oldest `lite` version, `forms` (`sd`, `ova`), and
+  `rega: true` for an addon that needs the ReGa. **A manifest without `rega` says the addon runs
+  without it**, which replaces the `openccu-lite.ok` marker.
+- **`ui`:** `icon`, `logo` (and `_dark` variants) as paths inside the package; `settings_url`
+  when your `Config-Url` is not the settings page; `session_header: true` when this version reads
+  the session header everywhere the shell opens it (below); `own_updater: true` when it still
+  carries an updater of its own.
+- **`runtime`**, what the unit is built from:
 
 | Key | Meaning |
 | --- | --- |
@@ -197,24 +255,35 @@ Addons page. An entry is written by the catalogue maintainers, not shipped insid
 | `groups` | supplementary groups, e.g. `["dialout"]` |
 | `data_dirs` | extra directories under `/usr/local/` that are chowned to the addon and writable. `/usr/local/<id>` is taken automatically when it exists |
 | `paths` | extra writable paths, not chowned |
-| `ports`, `port_info` | ports the daemon listens on, with protocol, TLS and a label. They appear as firewall switches, **closed by default** |
+| `ports`, `port_info` | ports the daemon listens on, with protocol, TLS and a label. Each is a switch in the firewall, **closed by default** |
 | `needs` | `[]`, or any of `rfd`, `hmipserver`, `hs485d`: what the unit waits for. Undeclared means after `rfd` and `HMIPServer` |
-| `session.header_since` | the first version of your addon that reads the session header (below). From that version on, the box stops appending `?sid=` |
-| `settings_url` | the settings page, when your `Config-Url:` is something else |
+| `start` | `"early"`: starts before the interface processes (above) |
+| `daemon` | `true` when the addon keeps a process running; a unit whose processes are gone then shows as *Exited* instead of *Completed* |
 | `api_scopes` | scopes for the addon's own API token (below) |
+| `note` | why the addon needs what it declares, and what it contacts outside the system; shown on the Addons page |
 
-Two files in your package matter too:
+**The catalogue** is one JSON file in the occulited repository,
+[`catalog/catalog.json`](https://github.com/hobbyquaker/occulited/blob/master/catalog/catalog.json)
+([catalog-format.md](https://github.com/hobbyquaker/occulited/blob/master/docs/catalog-format.md)).
+It only says **where** each addon's manifest is: `{"git": "<repository>", "manifest": "<path of
+openccu-lite.json in it>"}`, plus `untested: true` for an addon nobody has tried on openccu-lite
+yet. To be listed, open a pull request with one entry. For an addon whose author ships no
+manifest, the catalogue maintainers keep an adapter manifest under `catalog/manifests/<id>.json`.
 
-- **`openccu-lite.ok`**, an empty file in `/usr/local/addons/<id>/`, says "ported, runs without
-  ReGa". It exempts the addon from the ReGa scan; your ReGa code path for the CCU can stay. It
-  does not exempt the addon from the architecture check.
-- **`openccu-lite.env`** for icons and logos is *planned*.
+The image carries a copy of the catalogue. **Nothing is fetched until the user asks**: *Check for
+updates* on the Addons page reads the catalogue, every entry's manifest at its latest release tag,
+and the latest releases. A daily check is a switch, off on a fresh system. A catalogue install
+resolves the release from the manifest, downloads the asset, checks its `.sha256`, and hands the
+archive to the same installer an upload takes.
 
 ## Web integration
 
 ### How pages are served
 
-- lighttpd serves `/addons/<id>/` from `/usr/local/etc/config/addons/www/<id>` as on a CCU.
+- `/addons/<id>/` is your `/usr/local/etc/config/addons/www/<id>` as on a CCU, but lighttpd runs
+  as its own user and does not open addon files. **occulited serves the static files**, as its
+  own unprivileged user: a link out of your addon's tree answers 404, and a directory answers
+  `index.htm`, `index.html`, `index.xhtml` or `default.htm`.
 - **Every request under `/addons/` passes a session gate.** Without a live login, lighttpd
   answers with a redirect to `/login`. A settings page that forgot its own check is no longer
   open to the LAN; your CGIs must still check (next section).
@@ -228,9 +297,19 @@ Two files in your package matter too:
     server for that;
   - `X-Sendfile:` works for files under `/usr/local/tmp/`, including files your user wrote with
     mode 0600, and nowhere else.
-- **Your own HTTP server** is reached through a lighttpd drop-in
-  `/usr/local/etc/config/lighttpd/<id>.conf`, as in [04](04-webui.md). WebSockets pass. Keep the
-  proxied path under `/addons/`, otherwise the gate and the session header do not apply to it.
+- **Your own HTTP server** is reached through a lighttpd fragment, as in [04](04-webui.md), but
+  **ship it as `etc/lighttpd.conf` in your addon's tree** (a rendered file; a template may be
+  `.in` and rendered by your scripts). occulited validates it and writes a root-owned copy to
+  `/usr/local/etc/config/lighttpd/<id>.conf` at every install and before every lighttpd start; it
+  removes its copy when your fragment is gone. Your addon never writes that directory on
+  openccu-lite. A fragment that fails the check is refused and the reason written to
+  `<id>.conf.rejected`. Allowed: `url.redirect*`, `url.rewrite*`, `url.access-deny`,
+  `proxy.server/header/forwarded/balance` to this system only (127.0.0.1, ::1, localhost, or a
+  unix socket in your tree), `setenv.*` headers, `alias.url` and `server.errorfile-prefix` inside
+  your tree, a few more static and limit settings, and `$HTTP[...]` conditions. Not allowed:
+  `include`, `include_shell`, `$SERVER["socket"]`, `cgi.*`, `magnet.*`, `auth.*`, `ssl.*`,
+  variables. WebSockets pass. Keep the proxied path under `/addons/`, otherwise the gate and the
+  session header do not apply to it.
 
 ### Sessions
 
@@ -241,8 +320,8 @@ Session ids on openccu-lite are 26 characters (`[A-Z2-7]`). The browser carries 
 
 - The ten characters are *not* the session. The gate and the `tclrega.so` shim accept them;
   occulited's API never does.
-- The box appends the alias only for addons that have not declared the header, and never for a
-  proxied frontend.
+- The system appends the alias only for addons whose manifest does not declare
+  `ui.session_header`, and never for a proxied frontend.
 - The user can switch the alias off, globally or per addon.
 - The session check from [04](04-webui.md), `rega_script "Write(system.GetSessionVarStr(...))"`,
   keeps working through the shim. It is the **only** ReGa call the shim answers; any other
@@ -259,8 +338,11 @@ Session ids on openccu-lite are 26 characters (`[A-Z2-7]`). The browser carries 
 ```
 GET http://127.0.0.1/api/auth/v1/state
 Authorization: Bearer <header value>
-→ {"authenticated": true, "sid": "...", "user": "...", "role": "admin", ...}
+→ {"authenticated": true, "sid": "...", "user": "...", "level": "administer", "role": "admin", ...}
 ```
+
+`level` is one of `read`, `operate`, `configure`, `administer`; `role` (`admin` for
+`administer`, else `user`) is still answered for older clients.
 
 Rules for the header:
 
@@ -270,15 +352,15 @@ Rules for the header:
 - Accept a session only when `/state` answers `authenticated: true` with the same `sid`. Refuse
   API tokens there.
 - Fall back to `?sid=` and the shim when there is no header.
-- Admin-only settings pages check `role`.
+- Admin-only settings pages check `role` (or `level`).
 
 [templates/lib/session.tcl](../templates/lib/session.tcl) does all of this. It is Tcl 8.2 safe,
 and on a CCU it behaves exactly as before. For Node-RED, set `adminAuth.tokenHeader:
 'x-occulite-session'`, with a `tokens()` function that asks `/state`.
 
-Once a release reads the header everywhere the shell opens it, ask for
-`runtime.session.header_since: "<that version>"` in the catalogue entry. Keep accepting `?sid=`,
-because older boxes and every CCU still send it.
+Once a release reads the header everywhere the shell opens it, set `"ui": {"session_header":
+true}` in that release's manifest; the shell then opens it without `?sid=`. Keep accepting
+`?sid=`, because every CCU still sends it.
 
 An addon that logs users in itself (formerly through ReGa's user objects and UDP 1998) uses
 `POST /api/auth/v1/login {"username","password"}`.
@@ -288,34 +370,35 @@ An addon that logs users in itself (formerly through ReGa's user objects and UDP
 - **Settings page**: your `Config-Url:` from `info` (and `hm_addons.cfg`). It is shown as the
   *Settings* button on the Addons page and framed at `/addon-settings/<id>`.
   - If your `Config-Url` is not the settings page (Homematic Manager's hands over to its app),
-    let `update_script` write the right one when `VARIANT=lite`.
-  - Alternatively, the catalogue's `settings_url` names it.
-- **Frontend**: a lighttpd drop-in that proxies a plain path under `/addons/` makes the addon a
-  menu entry. For anything the parser cannot read, declare the entry explicitly in
-  `/usr/local/etc/config/nav.d/<id>.json`:
+    let `update_script` write the right one when `VARIANT=lite`, or name it in the manifest's
+    `ui.settings_url`.
+- **Frontend**: a lighttpd fragment that proxies a plain path under `/addons/` makes the addon an
+  entry in the addon menu; the user can pin it as a tab. For anything the parser cannot read,
+  declare the entry explicitly in `/usr/local/etc/config/nav.d/<id>.json`:
 
 ```json
 {"id": "<id>", "label": {"de": "…", "en": "…"}, "icon": "/addons/<id>/icon.svg",
  "href": "/addons/<id>/", "target": "iframe", "order": 50, "keep_alive": false}
 ```
 
-- **Embedding.** Pages are embedded as same-origin iframes.
+- **Embedding.** Pages are embedded as same-origin iframes, and up to three stay loaded while
+  other pages show, so a WebSocket survives a switch.
   - The shell appends `?theme=system|light|dark&lang=de|en`, sets the `ol-theme` and `ol-lang`
     cookies, and posts `{type: "openccu-lite:theme", theme, lang}` when the user changes either.
     Follow them if you can.
   - A page that forbids framing (`X-Frame-Options`, `frame-ancestors`) is opened in a new tab
     instead.
-- `hm_addons.cfg` and `nav.d` both stay supported. *Planned:* the Addons page is being reworked
-  into one card list with a pin toggle for frontends, and the separate addon menu goes away.
-  Declare your entries as above and let the box place them.
+- The icon and logo the Addons page, the menu and the tab bar show come from the manifest's `ui`
+  block.
 
 ## APIs an addon can use
 
 - **Radio interfaces.** Read the URLs from `/etc/config/InterfacesList.xml`, don't hard-code
   2001/2010. On openccu-lite they are loopback ports (32001, 32000, 32010, VirtualDevices
-  `127.0.0.1:39292/groups`). The CCU's lighttpd proxy ports do not exist, not even on loopback.
-  Callbacks to your listener on 127.0.0.1 work. Clients off the box cannot connect today;
-  optional remote access is *planned*.
+  `127.0.0.1:39292/groups`). Callbacks to your listener on 127.0.0.1 work. The CCU's lighttpd
+  proxy ports (2001, 2010, 9292, their TLS twins) exist only when the user switches classic RPC
+  on for the LAN; clients off the system use lite-rpc (`/api/rpc/v1`: XML-RPC and JSON-RPC calls
+  with a token, events as a stream instead of a callback server).
 - **Metadata API**, `http://127.0.0.1/api/meta/v1`. This is the replacement for names, rooms
   and functions from ReGa.
   - **Detection:** `GET /version` → `{"api":"meta","version":1,…}` without authentication.
@@ -329,21 +412,26 @@ An addon that logs users in itself (formerly through ReGa's user objects and UDP
   - **Objects** are keyed by `<interface>.<address>` (`BidCos-RF.JEQ0230153:1`). There are no
     numeric ids.
   - **Rooms and functions** are path trees (`room/eg/wohnzimmer`).
-  - The API is frozen for version 1. The full reference is the metadata API document in the
-  [openccu-lite repository](https://github.com/hobbyquaker/openccu-lite).
+  - The API is frozen for version 1. The full reference is
+    [meta-api.md](https://github.com/hobbyquaker/occulited/blob/master/docs/meta-api.md), the
+    document format [meta-format.md](https://github.com/hobbyquaker/occulited/blob/master/docs/meta-format.md),
+    and the mapping from ReGa
+    [porting-from-rega.md](https://github.com/hobbyquaker/openccu-lite/blob/main/docs/porting-from-rega.md).
 - **Credentials**, sent as `Authorization: Bearer …`:
   - `/usr/local/etc/occulite/local-token` is readable by every addon and has scope `meta:read`
     only;
   - your addon's own token, `/run/occulite/addon-tokens/<id>.api`, carries the scopes from
     `runtime.api_scopes`. It is never `*`, `auth:admin`, `power` or `backup`;
   - a request can use the user's session from the header;
-  - a user can create a token on the box and paste it into your configuration.
+  - a user can create an API token on the system and paste it into your configuration.
 
   A `403` names the missing scope. Scopes include `meta:read`, `meta:write`, `system:read`,
-  `logs:read`, `system:write`, `addons:write`, `led`.
-- **System API**, `/api/system/v1`. Useful routes: the journal of your unit
-  (`GET /log?unit=addon-<id>`, scope `logs:read`), the addon list, and the status LED. Send
-  `Content-Length` on `POST` and `PUT`.
+  `logs:read`, `system:write`, `addons:write`, `led`, and for lite-rpc `rpc:read`,
+  `rpc:operate`, `rpc:configure`, `rpc:admin`.
+- **System API**, `/api/system/v1`
+  ([system-api.md](https://github.com/hobbyquaker/occulited/blob/master/docs/system-api.md)).
+  Useful routes: the journal of your unit (`GET /log?unit=addon-<id>`, scope `logs:read`), the
+  addon list, and the status LED. Send `Content-Length` on `POST` and `PUT`.
 
 **Gone, with no emulation:**
 
@@ -351,50 +439,45 @@ An addon that logs users in itself (formerly through ReGa's user objects and UDP
 - system variables, programs, favourites, service-message and alarm variables;
 - the WebUI JSON-RPC `/api/homematic.cgi` (`Session.login`, `Device.listAll`, `Interface.*`);
 - `/config/*.cgi`;
-- `checkAddonUpdates.sh`, `updateAddonConfig.tcl`, `hm_autoconf`.
-
-*Planned:* `/var/status/hasInternet` and `checkInternet` go as well.
+- `checkAddonUpdates.sh`, `updateAddonConfig.tcl`, `hm_autoconf`;
+- `checkInternet` and `/var/status/hasInternet`: the system contacts the internet only when the
+  user asks it to;
+- `libfirewall.tcl` and `firewall.conf`.
 
 ## Logs, backups, firewall, updates
 
 - **Logs.** Everything your unit writes to stdout and stderr lands in the journal as
   `addon-<id>`, and so do `logger -t <tag>` lines. There is no `/var/log/messages` to grep.
   - Log to stdout or `logger`, and don't write log files that grow on the SD card.
-  - Your settings page cannot run `journalctl` as the addon user. Link the box's log page
+  - Your settings page cannot run `journalctl` as the addon user. Link the system's log page
     (`/system/log?unit=addon-<id>`) or read `GET /api/system/v1/log` with a `logs:read` token.
 - **Backups** are OpenCCU's `createBackup.sh` and honour `.nobackup` ([06](06-system-integration.md)).
+  After a restore an addon without its program files is offered for reinstall from the
+  catalogue.
 - **Firewall.**
-  - The default is `RESTRICTIVE`.
-  - Declared ports appear on the firewall page as switches, closed until the user opens them.
+  - occulited owns it: one rule list, on a fresh system with the default policy DROP; the web
+    ports, and SSH while it is enabled, are open from local networks.
+  - Declared ports appear as switches, closed until the user opens them.
   - A confined addon cannot change the firewall. Show the state if you like, and tell the user
     where to open the port.
-  - *Planned:* port ranges, UDP and multicast (mDNS, Matter, HomeKit).
+  - The user's own rules may name port ranges and UDP; a manifest declares single ports.
 - **monit and cron.** There is no monit; systemd tracks the unit. crond reads
   `/usr/local/crontabs/root` and runs as root, so keep scheduling inside the addon.
 - **Updates.** Installs and updates go through the catalogue, which runs your own
   `update_script`.
   - **Hide your own self-updater on openccu-lite** ([07](07-updates-and-releases.md)). It
-    bypasses the unit and the ownership steps. Show a line pointing to the box's Addons page
-    instead, and answer your update CGI's start command with 403 there.
-  - `Update:` and your `update_check.cgi` may stay.
-  - *Planned:* automatic update checks become opt-in.
+    bypasses the unit and the ownership steps. Show a line pointing to the system's Addons page
+    instead, and answer your update CGI's start command with 403 there. Set `ui.own_updater`
+    for a release that still carries one.
+  - `Update:` and your `update_check.cgi` may stay. The system's own update check runs when the
+    user asks, or daily when the user switched that on.
 
 ## Not final yet
 
-As of `1.0.0-dev.1`, these may still change:
+As of `1.0.0-dev.28`, these may still change:
 
-- the Addons page and menu rework;
-- the update guideline, and an optional "has its own updater" catalogue flag;
-- `openccu-lite.env`;
-- early and parallel addon start (`runtime.start`);
-- dropping `CAP_SYS_ADMIN` from root addons;
-- port ranges and multicast in `ports`;
-- a `runtime.logs` switch;
-- signed catalogue installs;
 - the session cookie kept away from `/addons/`, with API writes from addon pages then needing a
   header credential;
-- remote RPC access;
-- daemon users;
-- the handling of lighttpd drop-ins and www symlinks.
+- signed releases, and catalogue installs refused without a valid signature.
 
 Build against what is described above as current, and check this chapter again before a release.

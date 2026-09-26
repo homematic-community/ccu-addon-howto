@@ -29,18 +29,36 @@ Repository: [eq-3/occu](https://github.com/eq-3/occu), the published parts of th
 
 ## openccu-lite
 
-Repository: [hobbyquaker/openccu-lite](https://github.com/hobbyquaker/openccu-lite).
-Chapters [11](11-openccu-lite.md) and [12](12-porting-to-openccu-lite.md) were read from its
-sources and its addon documentation in September 2026 (`1.0.0-dev.1`), and checked on an x86_64
-OVA and a Raspberry Pi 4:
+Repositories: [hobbyquaker/openccu-lite](https://github.com/hobbyquaker/openccu-lite) (the
+firmware, branch `main`) and [hobbyquaker/occulited](https://github.com/hobbyquaker/occulited)
+(its system service, branch `master`). Chapters [11](11-openccu-lite.md) and
+[12](12-porting-to-openccu-lite.md) were first read from their sources in September 2026
+(`1.0.0-dev.1`) and checked on an x86_64 OVA and a Raspberry Pi 4, then re-read against the first
+public release [`v1.0.0-dev.28`](https://github.com/hobbyquaker/openccu-lite/releases) (occulited
+`570f283`):
 
-- the addon unit generator and the rc.d wrapper;
-- occulited's addon policy (the confinement drop-in), its CGI runner, the ReGa and ELF scans,
-  and the menu parser;
+- the addon unit generator,
+  [`occu-addons`](https://github.com/hobbyquaker/openccu-lite/blob/main/buildroot-external/overlay/lite/usr/lib/systemd/system-generators/occu-addons),
+  and the rc.d wrapper;
+- occulited's addon policy (the confinement drop-in, `internal/system/addonpolicy.go`), its CGI
+  runner and static file server, the lighttpd fragment check (`internal/system/lighttpdropin.go`),
+  the ReGa and ELF scans, and the menu parser;
 - the lighttpd session gate;
 - the `tclrega.so` shim;
-- the metadata, system and auth API references;
-- the addon catalogue format.
+- the manifest: [manifest-format.md](https://github.com/hobbyquaker/occulited/blob/master/docs/manifest-format.md),
+  [manifest.schema.json](https://github.com/hobbyquaker/occulited/blob/master/docs/manifest.schema.json),
+  `internal/manifest`;
+- the catalogue: [catalog-format.md](https://github.com/hobbyquaker/occulited/blob/master/docs/catalog-format.md),
+  [catalog/catalog.json](https://github.com/hobbyquaker/occulited/blob/master/catalog/catalog.json);
+- the metadata API: [meta-api.md](https://github.com/hobbyquaker/occulited/blob/master/docs/meta-api.md),
+  [meta-format.md](https://github.com/hobbyquaker/occulited/blob/master/docs/meta-format.md) and the
+  conformance corpus [fixtures/](https://github.com/hobbyquaker/occulited/tree/master/fixtures);
+- the system and auth APIs, lite-rpc, the addon CGIs and the embedding contract:
+  [system-api.md](https://github.com/hobbyquaker/occulited/blob/master/docs/system-api.md);
+- the firmware's user documents: [addons.md](https://github.com/hobbyquaker/openccu-lite/blob/main/docs/addons.md),
+  [porting-from-rega.md](https://github.com/hobbyquaker/openccu-lite/blob/main/docs/porting-from-rega.md),
+  [PORTING-PROMPT.md](https://github.com/hobbyquaker/openccu-lite/blob/main/docs/PORTING-PROMPT.md)
+  (the metadata porting prompt), [security.md](https://github.com/hobbyquaker/openccu-lite/blob/main/docs/security.md).
 
 Ported addons that show the result:
 
@@ -53,8 +71,8 @@ Ported addons that show the result:
 
 ## Example addons
 
-- [homematic-community/ccu-addon-mosquitto](https://github.com/homematic-community/ccu-addon-mosquitto): Mosquitto 2.1, source build in Alpine containers, patchelf, settings page with listeners, TLS, users, bridges, firewall, persistence on USB, self-update, e2e and parser tests, automatic releases. Its `roadmap-archive/` records every finding with dates.
-- [rdmtc/RedMatic](https://github.com/rdmtc/RedMatic): Node-RED, Node.js 24 from Alpine on armv7l, bundled git, monit, telemetry, safe mode, progress-bar self-update, wiki. `HANDOFF.md` and `roadmap-archive/` document the 2026 modernisation.
+- [homematic-community/ccu-addon-mosquitto](https://github.com/homematic-community/ccu-addon-mosquitto): Mosquitto 2.1, source build in Alpine containers, patchelf, settings page with listeners, TLS, users, bridges, firewall, persistence on USB, self-update, e2e and parser tests, automatic releases.
+- [rdmtc/RedMatic](https://github.com/rdmtc/RedMatic): Node-RED, Node.js 24 from Alpine on armv7l, bundled git, monit, telemetry, safe mode, progress-bar self-update, wiki.
 - [homematic-community/XML-API](https://github.com/homematic-community/XML-API): the classic minimal addon (Tcl CGIs only); its `update_script` still shows the CCU1/CCU2 branches, its rc.d script the `info` fields.
 - [jens-maus/hm_pdetect](https://github.com/jens-maus/hm_pdetect), [CUxD](https://cuxd.de/), [CCU-Historian](https://github.com/mdzio/ccu-historian): further long-lived addons worth reading.
 
