@@ -1,25 +1,29 @@
 # 01 Platforms
 
 An addon runs on a Buildroot-based embedded Linux with busybox. There is no package manager, no
-compiler, no sudo; everything runs as root. Two firmware families matter today
-(a third, openccu-lite, is OpenCCU without ReGaHSS and with systemd; see [11](11-openccu-lite.md)):
+compiler, no sudo; on the CCU3 firmware and OpenCCU everything runs as root. Two firmware families
+matter today, plus a third that is built from the second:
+[openccu-lite](https://github.com/hobbyquaker/openccu-lite) is OpenCCU without ReGaHSS and the
+WebUI, with systemd, and runs each addon as its own user by default ([11](11-openccu-lite.md)).
 
-| | Original CCU3 firmware (eQ-3) | OpenCCU (formerly RaspberryMatic) |
-| --- | --- | --- |
-| Hardware | CCU3 (Raspberry Pi 3 based, armv7l, 1 GB RAM) and "Charly" variants | Raspberry Pi 2/3/4/5, Tinkerboard, x86 (ova, intelnuc), containers (oci) |
-| Kernel arch (`uname -m`) | `armv7l` | `armv7l` (rpi2, tinkerboard, oci_arm), `aarch64` (rpi3/4/5, oci_arm64), `x86_64` (ova, intelnuc, oci_amd64) |
-| glibc | **2.27** (Buildroot 2018.08) | current (2.43 on 3.89.8) |
-| busybox | 1.29 | 1.38 |
-| Tcl (`/bin/tclsh`, runs every CGI) | **8.2.3** | 8.6 |
-| `/VERSION` | `VERSION=3.89.8`, `PRODUCT=ccu3`, `PLATFORM=rpi3` | `VERSION=3.89.8.20260719`, `PRODUCT=ova` or `rpi4` etc., `PLATFORM=...` |
-| Addon install | at the shutdown of a reboot, in a chroot | live, reboot only on exit code 10 |
-| monit | no | yes (`/usr/local/etc/monit*.cfg` are included) |
-| 32-bit compat loaders | n/a | yes: `/lib/ld-linux.so.2` on x86_64, `/lib/ld-linux-armhf.so.3` on aarch64, so old i386/armv7 helper binaries still run |
-| Firewall library | `/lib/libfirewall.tcl` | `/lib/libfirewall.tcl`, plus `/bin/updateAddonConfig.tcl` and `/bin/checkAddonUpdates.sh` |
-| USB sticks | `/media/usb1` to `/media/usb8` exist as empty mount points on a tmpfs | `/media/usb0` and up are created when a stick is mounted |
+| | Original CCU3 firmware (eQ-3) | OpenCCU (formerly RaspberryMatic) | openccu-lite |
+| --- | --- | --- | --- |
+| Hardware | CCU3 (Raspberry Pi 3 based, armv7l, 1 GB RAM) and "Charly" variants | Raspberry Pi 2/3/4/5, Tinkerboard, x86 (ova, intelnuc), containers (oci) | CCU3, Raspberry Pi 3/4 and CM3/CM4, x86 (ova); no Pi 5 or container release yet |
+| Kernel arch (`uname -m`) | `armv7l` | `armv7l` (rpi2, tinkerboard, oci_arm), `aarch64` (rpi3/4/5, oci_arm64), `x86_64` (ova, intelnuc, oci_amd64) | `aarch64` (aarch64-rpi3, which the CCU3 runs too, and aarch64-rpi4), `x86_64` (x86_64-ova); no `armv7l` |
+| glibc | **2.27** (Buildroot 2018.08) | current (2.43 on 3.89.8) | current (2.44 on `1.0.0-dev.28`) |
+| busybox | 1.29 | 1.38 | 1.38 |
+| Tcl (`/bin/tclsh`, runs every CGI) | **8.2.3** | 8.6 | 8.6, with tcllib; CGIs under `/addons/` are run by occulited ([11](11-openccu-lite.md)) |
+| `/VERSION` | `VERSION=3.89.8`, `PRODUCT=ccu3`, `PLATFORM=rpi3` | `VERSION=3.89.8.20260719`, `PRODUCT=ova` or `rpi4` etc., `PLATFORM=...` | OpenCCU's three lines (`VERSION=3.89.11.20260919`, `PRODUCT=rpi4` etc.) plus `VARIANT=lite` and `LITE=1.0.0-dev.28` |
+| Addon install | at the shutdown of a reboot, in a chroot | live, reboot only on exit code 10 | live, by occulited (upload or catalogue); a new addon starts in its unit even after exit code 10 |
+| monit | no | yes (`/usr/local/etc/monit*.cfg` are included) | no; systemd tracks the addon's unit |
+| 32-bit compat loaders | n/a | yes: `/lib/ld-linux.so.2` on x86_64, `/lib/ld-linux-armhf.so.3` on aarch64, so old i386/armv7 helper binaries still run | yes, as OpenCCU (`/lib32`) |
+| Firewall library | `/lib/libfirewall.tcl` | `/lib/libfirewall.tcl`, plus `/bin/updateAddonConfig.tcl` and `/bin/checkAddonUpdates.sh` | none: occulited owns the firewall, addon ports are declared in the manifest ([11](11-openccu-lite.md)) |
+| USB sticks | `/media/usb1` to `/media/usb8` exist as empty mount points on a tmpfs | `/media/usb0` and up are created when a stick is mounted | `/media/usb1` to `/media/usb8` when a stick is mounted (`noexec`), the first also linked as `/media/usb0` |
 
 Sources: the values were read from the lab systems (`/VERSION`, `/lib/libc.so.6`, `busybox`,
-`tclsh` with `info patchlevel`, `/lib`, `/media`), see [10-sources.md](10-sources.md).
+`tclsh` with `info patchlevel`, `/lib`, `/media`), see [10-sources.md](10-sources.md). The
+openccu-lite column is from the `v1.0.0-dev.28` release: its build configuration, the SBOMs
+published with it (glibc, busybox, Tcl) and occulited's documents.
 
 ## What is what on disk
 

@@ -14,7 +14,7 @@ Pull requests welcome.
 
 | Chapter | What you learn |
 | --- | --- |
-| [01 Platforms](docs/01-platforms.md) | CCU3 firmware vs. OpenCCU, architectures, libc, Tcl and busybox versions, read-only root, what `/usr/local` is |
+| [01 Platforms](docs/01-platforms.md) | CCU3 firmware vs. OpenCCU vs. openccu-lite, architectures, libc, Tcl and busybox versions, read-only root, what `/usr/local` is |
 | [02 Package and installation](docs/02-package-and-install.md) | The `.tar.gz` layout, `update_script`, exit codes, how each firmware installs (live vs. reboot + chroot), updates, migration, uninstall |
 | [03 The rc.d script](docs/03-rc-script.md) | `init`/`start`/`stop`/`info`/`restart`/`uninstall`, the `info` fields the WebUI parses, boot order, safe mode |
 | [04 WebUI integration](docs/04-webui.md) | The *Einstellungen* button (`hm_addons.cfg`), the update check, serving pages and CGIs through lighttpd, the CCU session, **Tcl 8.2 pitfalls** |

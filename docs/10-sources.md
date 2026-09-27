@@ -59,6 +59,15 @@ public release [`v1.0.0-dev.28`](https://github.com/hobbyquaker/openccu-lite/rel
   [porting-from-rega.md](https://github.com/hobbyquaker/openccu-lite/blob/main/docs/porting-from-rega.md),
   [PORTING-PROMPT.md](https://github.com/hobbyquaker/openccu-lite/blob/main/docs/PORTING-PROMPT.md)
   (the metadata porting prompt), [security.md](https://github.com/hobbyquaker/openccu-lite/blob/main/docs/security.md).
+- the openccu-lite column of the table in [01](01-platforms.md): the release's build configuration
+  ([`buildroot-external/configs/`](https://github.com/hobbyquaker/openccu-lite/tree/main/buildroot-external/configs),
+  the `/VERSION` lines in
+  [`board/lite/post-build.sh`](https://github.com/hobbyquaker/openccu-lite/blob/main/buildroot-external/board/lite/post-build.sh),
+  the USB mount points in
+  [`overlay/lite/etc/usbmount/usbmount.conf`](https://github.com/hobbyquaker/openccu-lite/blob/main/buildroot-external/overlay/lite/etc/usbmount/usbmount.conf)),
+  the CycloneDX SBOMs published with
+  [`v1.0.0-dev.28`](https://github.com/hobbyquaker/openccu-lite/releases/tag/v1.0.0-dev.28)
+  (glibc 2.44, busybox 1.38.0, Tcl 8.6.15, tcllib 1.21), and the install job in system-api.md.
 
 Ported addons that show the result:
 
