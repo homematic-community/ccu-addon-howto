@@ -100,8 +100,9 @@ Work through chapter 12 in order. Make one commit per step, and explain why in e
    - List every path the daemon, the CGIs and the helper scripts write or read outside the
      addon directory, every port, every device and every root-only operation.
    - Fix each one in code, or put it in the manifest's `runtime` block (`data_dirs`, `paths`,
-     `groups`, `capabilities`, `ports` + `port_info`, `needs`, `daemon`, `note`; `start: "early"`
-     only when the addon retries within seconds and logs no errors while it waits).
+     `groups`, `capabilities`, `ports` + `port_info`, `needs`, `note`; `daemon: true` when
+     `start` leaves a process running; `start: "early"` only when the addon retries within
+     seconds and logs no errors while it waits).
    - Aim for no `root`.
    - Use no shared `/tmp` files; use `/run/addon-<ID>/`.
 6. **Web UI.**

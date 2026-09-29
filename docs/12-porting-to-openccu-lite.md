@@ -181,7 +181,8 @@ packaging copy it to the root of the tarball, beside `update_script`:
 - `ui`: `icon` and `logo` inside the package, `settings_url` if needed, `session_header: true`
   once step 5 shipped, `own_updater` if you keep an updater;
 - **the `runtime` block**: `needs`, `start: "early"` only when the addon retries within seconds
-  without error lines, `daemon`, `ports` with `port_info`, `data_dirs`, `paths`, `groups`,
+  without error lines, `daemon: true` when `start` leaves a process running (leave it out for an
+  addon that only prepares things), `ports` with `port_info`, `data_dirs`, `paths`, `groups`,
   `capabilities`, `api_scopes`, and a `note` saying why and what the addon contacts outside the
   system. Leave `root` out unless there is no other way.
 
