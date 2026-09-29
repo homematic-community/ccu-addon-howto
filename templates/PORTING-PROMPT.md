@@ -132,7 +132,10 @@ Work through chapter 12 in order. Make one commit per step, and explain why in e
 9. **Metadata** (only for reader/writer addons). Add a second provider next to the ReGa one, as
    described in chapter 12, step 8:
    - version probe, `/snapshot`, `/events/sse?since=`;
-   - local token for reads, `meta:write` for writes;
+   - local token for reads, `meta:write` for writes; off the system a token option or client
+     pairing;
+   - the state store (`GET /api/rpc/v1/state`) instead of a `getParamset` sweep at start, when
+     `/version` says `capabilities.state`;
    - degrade on 401;
    - same output shape.
 10. **Tests.**

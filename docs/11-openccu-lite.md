@@ -461,12 +461,30 @@ Each refusal is a journal line that names the addon. What follows for an addon:
   2001/2010. On openccu-lite they are loopback ports (32001, 32000, 32010, VirtualDevices
   `127.0.0.1:39292/groups`). Callbacks to your listener on 127.0.0.1 work. The CCU's lighttpd
   proxy ports (2001, 2010, 9292, their TLS twins) exist only when the user switches classic RPC
-  on for the LAN; clients off the system use lite-rpc (`/api/rpc/v1`: XML-RPC and JSON-RPC calls
-  with a token, events as a stream instead of a callback server).
+  on for the LAN; clients off the system use lite-rpc.
+- **lite-rpc**, `/api/rpc/v1` (the lite-rpc section of
+  [system-api.md](https://github.com/hobbyquaker/occulited/blob/master/docs/system-api.md)): the
+  interface processes through the system's web server with a token, for a program on or off the
+  system.
+  - Calls: `POST /xmlrpc/{interface}` (XML-RPC) or `POST /json/{interface}` (JSON-RPC 2.0).
+    Each method needs a scope tier (`rpc:read`, `rpc:operate`, `rpc:configure`, `rpc:admin`);
+    `init` is never forwarded. In JSON, `{"double": n}` sends a `double` whatever `n` looks like
+    (a `FLOAT` datapoint written as `1`).
+  - Events: `GET /events` (Server-Sent Events) or `GET /events/ws` (WebSocket) instead of a
+    callback server, with resume by `Last-Event-ID` and a `resync` when the buffer (5 minutes)
+    was not enough.
+  - **The state store:** `GET /state` answers the last value of every datapoint the system keeps
+    (the service datapoints and what the app's cards draw) with `ts`, `lc` (since when) and
+    `confirmed`: one read at start instead of a `getParamset` sweep. Open the stream with its
+    `event_id` and nothing is lost in between.
+  - **The history:** `GET /history?interface=&address=&datapoint=` answers the last 500 rows of
+    one series, for the datapoints on the system's list.
 - **Metadata API**, `http://127.0.0.1/api/meta/v1`. This is the replacement for names, rooms
   and functions from ReGa.
   - **Detection:** `GET /version` → `{"api":"meta","version":1,…}` without authentication.
-    Anything else (404, HTML) means a CCU.
+    Anything else (404, HTML) means a CCU. Its `capabilities` object says what else this system
+    offers (`pairing`, `state`, `history`, the API majors, `json_double`); treat a missing key as
+    absent.
   - **Reading:** `GET /snapshot`, `/objects[?enum=room/eg]`, `/objects/{ref}`, `/enums`,
     `/enums/{enum}/tree`.
   - **Writing:** `PATCH /objects/{ref}` for the name, the enums, and your own `meta.<id>`
@@ -487,7 +505,12 @@ Each refusal is a journal line that names the addon. What follows for an addon:
   - your addon's own token, `/run/occulite/addon-tokens/<id>.api`, carries the scopes from
     `runtime.api_scopes`. It is never `*`, `auth:admin`, `power` or `backup`;
   - a request can use the user's session from the header;
-  - a user can create an API token on the system and paste it into your configuration.
+  - a user can create an API token on the system and paste it into your configuration;
+  - **client pairing**, for a program that runs elsewhere in the local network (or an addon's
+    off-system mode): it asks for access per area (`POST /api/auth/v1/pairing/request`, devices, names and system at
+    a level each), shows a six-digit code, and an administrator who sees the same code on the
+    Status page approves it. The program then gets an ordinary API token. An administrator can
+    narrow it later; the program rotates it itself with `POST /api/auth/v1/tokens/self/rotate`.
 
   A `403` names the missing scope. Scopes include `meta:read`, `meta:write`, `system:read`,
   `logs:read`, `system:write`, `addons:write`, `led`, and for lite-rpc `rpc:read`,

@@ -225,9 +225,13 @@ Keep the ReGa provider and add a second one with the **same public surface**:
    - On the system, read `/usr/local/etc/occulite/local-token` (`meta:read`) by default.
    - For writes (`PATCH /objects/{ref}`, your `meta.<id>` namespace), use the user's session or
      a token with `meta:write`: your own from `api_scopes`, or one the user created.
-   - Off the system, use a token option.
+   - Off the system, use a token option, or ask for one with client pairing
+     ([11](11-openccu-lite.md#apis-an-addon-can-use)).
    - A `401` means run without names and log it once; never crash.
-6. **ReGa-only features** (system variables, programs, scripts) stay accepted in the
+6. **Values at start.** An addon that reads every datapoint with `getParamset` when it starts
+   can read them in one call from lite-rpc's state store (`GET /api/rpc/v1/state`) when
+   `/version`'s `capabilities.state` is true, and keep the sweep for the CCU.
+7. **ReGa-only features** (system variables, programs, scripts) stay accepted in the
    configuration, log one line on openccu-lite ("not available on this system"), and are
    documented as CCU-only.
 
