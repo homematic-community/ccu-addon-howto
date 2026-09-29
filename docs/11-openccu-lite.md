@@ -140,8 +140,12 @@ Your rc.d script therefore keeps its contract from [03](03-rc-script.md):
 
 Units are not ordered against each other; addons start side by side.
 
-**`init`** runs at boot as on a CCU. For a root addon it runs as root; for a confined addon it
-runs as the addon user in its unit, right before `start`.
+**`init`** of a root addon runs at boot as root, before the radio daemons, as on a CCU. For a
+confined addon it runs **inside its unit, as the addon user, right before `start`** (an
+`ExecStartPre` after the ownership step below), with the unit's sandbox: only the addon's own
+directories and what the manifest declares are writable. The boot pass skips a confined addon's
+`init`. An addon without an `init` case is fine: that step's exit status is ignored. The boot
+pass runs the rc.d entries only, never a `<id>.script` file directly.
 
 **Do not ship a systemd unit.** A `.service` file or drop-in inside your addon directory is
 ignored, and the journal says so. The addon user owns that directory, so a unit file there
@@ -154,8 +158,14 @@ wrapper in its place as `rc.d/<id>`:
   CGI, become `systemctl <action> addon-<id>.service`;
 - when the caller is the addon user, the wrapper sends a request to occulited with the addon's
   control token (`/run/occulite/addon-tokens/<id>`) instead;
-- every other command passes through unchanged. For a confined addon, `info` and `uninstall`
-  run as the addon user.
+- every other command passes through unchanged. For a confined addon, `info` (every listing:
+  the menu, the Addons page, the update check) and `uninstall` run as the addon user, with
+  `HOME=/usr/local/addons/<id>` and the firmware `PATH`. The unit is stopped before `uninstall`.
+  Afterwards the system removes, as root, what the script could not: the rc.d entry, the
+  `www/<id>` link, the `hm_addons.cfg` entry, its copy of your lighttpd fragment, and your
+  standard directories once the script emptied them. A directory with anything left in it stays,
+  so an addon that keeps its configuration for a reinstall keeps it. An `rm` of those entries in
+  your script fails quietly as the addon user; that is expected.
 
 If an update copies a fresh script over the wrapper, the script is adopted again after the
 install. You need not change anything for this.

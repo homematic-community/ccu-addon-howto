@@ -92,7 +92,10 @@ Work through chapter 12 in order. Make one commit per step, and explain why in e
    - The pid file goes to `/run/addon-<ID>/` (or the addon directory) when not root.
    - Skip boot-time network waits and `/proc/*/oom_score_adj` writes on openccu-lite.
    - `uninstall` removes only what the addon created, and tolerates a failed removal: on
-     openccu-lite it runs as the addon user when the addon is confined.
+     openccu-lite it runs as the addon user when the addon is confined, and the system removes
+     the rc.d entry, the www link and the emptied directories afterwards.
+   - `info` and `init` of a confined addon run as the addon user too (`init` inside the unit,
+     right before `start`): neither may need root. Answer `init` with nothing if unused.
 5. **Confinement.**
    - List every path the daemon, the CGIs and the helper scripts write or read outside the
      addon directory, every port, every device and every root-only operation.

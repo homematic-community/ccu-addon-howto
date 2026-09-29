@@ -84,10 +84,14 @@ grep -rnE 'dom\.(GetObject|CreateObject|DeleteObject)|rega_script|tclrega|:8181|
 - **`stop`** must really stop the daemon. The cgroup cleans up after it, but a clean shutdown
   (a flushed database) is still your job.
 - **`info` stays as it is.** It is cheap and is called often.
+- **`init`** of a confined addon runs in its unit as the addon user, right before `start`, not
+  as root at boot. Do nothing there that needs root; answer `init` with nothing (not a usage
+  line) if you have no use for it.
 - **`uninstall`** runs as the addon user when the addon is confined, as root otherwise. Remove
   only what you created: the button, the www link, your lighttpd drop-in, your `nav.d` file, and
-  let a failed removal pass. After a confined addon's `uninstall` the system removes the www link,
-  its copy of your lighttpd fragment and your emptied directories itself.
+  let a failed removal pass. After a confined addon's `uninstall` the system removes the rc.d
+  entry, the www link, the `hm_addons.cfg` entry, its copy of your lighttpd fragment and your
+  emptied directories itself.
 - **Wait for the network after boot, CCU3 only.** Skip the wait on openccu-lite: the unit
   already starts after the network, and after the radio daemons unless the manifest says
   otherwise (`needs`, `start`).

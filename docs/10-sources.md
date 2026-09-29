@@ -39,7 +39,12 @@ public release [`v1.0.0-dev.28`](https://github.com/hobbyquaker/openccu-lite/rel
 
 - the addon unit generator,
   [`occu-addons`](https://github.com/hobbyquaker/openccu-lite/blob/main/buildroot-external/overlay/lite/usr/lib/systemd/system-generators/occu-addons),
-  and the rc.d wrapper;
+  the rc.d wrapper
+  [`addon-rc-wrapper`](https://github.com/hobbyquaker/openccu-lite/blob/main/buildroot-external/overlay/lite/usr/libexec/occu/addon-rc-wrapper)
+  and the boot `init` pass
+  [`lite-init-addons`](https://github.com/hobbyquaker/openccu-lite/blob/main/buildroot-external/overlay/lite/usr/libexec/occu/lite-init-addons);
+- occulited's addon scripts: `info` and `uninstall` as the addon user and what the system removes
+  after an uninstall (`internal/system/services.go`, `internal/system/addons.go`);
 - occulited's addon policy (the confinement drop-in, `internal/system/addonpolicy.go`), its CGI
   runner and static file server, the lighttpd fragment check (`internal/system/lighttpdropin.go`),
   the ReGa and ELF scans, and the menu parser;
