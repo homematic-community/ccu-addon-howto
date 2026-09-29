@@ -18,7 +18,7 @@ WebUI, with systemd, and runs each addon as its own user by default ([11](11-ope
 | monit | no | yes (`/usr/local/etc/monit*.cfg` are included) | no; systemd tracks the addon's unit |
 | 32-bit compat loaders | n/a | yes: `/lib/ld-linux.so.2` on x86_64, `/lib/ld-linux-armhf.so.3` on aarch64, so old i386/armv7 helper binaries still run | yes, as OpenCCU (`/lib32`) |
 | Firewall library | `/lib/libfirewall.tcl` | `/lib/libfirewall.tcl`, plus `/bin/updateAddonConfig.tcl` and `/bin/checkAddonUpdates.sh` | none: occulited owns the firewall, addon ports are declared in the manifest ([11](11-openccu-lite.md)) |
-| USB sticks | `/media/usb1` to `/media/usb8` exist as empty mount points on a tmpfs | `/media/usb0` and up are created when a stick is mounted | `/media/usb1` to `/media/usb8` when a stick is mounted (`noexec`), the first also linked as `/media/usb0` |
+| USB sticks | `/media/usb1` to `/media/usb8` exist as empty mount points on a tmpfs | `/media/usb0` and up are created when a stick is mounted | `/media/usb1` to `/media/usb8` when a stick is mounted (`noexec`), the first also linked as `/media/usb0`; FAT, exFAT and NTFS owned by root and the group `usbstorage` after `1.0.0-dev.30` |
 
 Sources: the values were read from the lab systems (`/VERSION`, `/lib/libc.so.6`, `busybox`,
 `tclsh` with `info patchlevel`, `/lib`, `/media`), see [10-sources.md](10-sources.md). The

@@ -263,6 +263,14 @@ What this means for your code:
   in `/tmp` that another user created. Keep temporary files in `/run/addon-<id>/` or in your own
   directory.
 - **Devices** only through a declared group, such as `dialout` for a serial adapter.
+- **USB sticks** (images after `1.0.0-dev.30`): FAT, exFAT and NTFS sticks are mounted at
+  `/media/usb1` to `usb8`, owned by root and the group `usbstorage` (umask 0007). Declare
+  `"groups": ["usbstorage"]` to read and write them, and `"paths": ["/media"]` as well, because
+  `ProtectSystem=strict` keeps `/media` read-only otherwise. A stick plugged in while the addon
+  runs appears writable in its namespace. The group is not granted by default: a stick may hold
+  the system's backups and, unencrypted, the radio keys. A group the system does not know is
+  left out of the unit (and logged), so a manifest may declare `usbstorage` for older images
+  too. Sticks with ext2/3/4, f2fs or hfsplus keep their own owners and modes.
 - **No sudo, no polkit, no root helper.** The only privileged thing an addon can ask for is
   starting, stopping and restarting its own unit (the wrapper above). An addon that really needs
   root declares it (`runtime.root`). The user can also switch any addon to root on the Services
@@ -326,7 +334,7 @@ validate against [manifest.schema.json](https://github.com/hobbyquaker/occulited
 | --- | --- |
 | `root` | `true` for an addon that genuinely needs root. Shown as unsafe |
 | `capabilities` | e.g. `["CAP_NET_BIND_SERVICE"]`, `CAP_NET_RAW`. A confined addon may not declare a root-equivalent one (below) |
-| `groups` | supplementary groups, e.g. `["dialout"]`. A confined addon may not declare `occulite` or `root` (below) |
+| `groups` | supplementary groups, e.g. `["dialout"]`, `["usbstorage"]` for USB sticks. A group the system does not know is left out. A confined addon may not declare `occulite` or `root` (below) |
 | `data_dirs` | extra directories under `/usr/local/` that are chowned to the addon and writable. `/usr/local/<id>` is taken automatically when it exists |
 | `paths` | extra writable paths, not chowned |
 | `ports`, `port_info` | ports the daemon listens on, with protocol, TLS and a label. Each is a switch in the firewall, **closed by default** |

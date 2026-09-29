@@ -83,6 +83,12 @@ check `/proc/mounts` for a mount at `/media/usb<N>` and never create data direct
 subdirectory per addon on a stick. Sticks protect the SD card from write cycles; RedMatic's
 context store and the Mosquitto persistence database can live there.
 
+On openccu-lite a confined addon does not run as root. From the images after `1.0.0-dev.30`, sticks
+with FAT, exFAT or NTFS are mounted owned by root and the group `usbstorage` (umask 0007); an
+addon that wants to use them declares `"groups": ["usbstorage"], "paths": ["/media"]` in its
+manifest ([11](11-openccu-lite.md#confinement)). Sticks with ext2/3/4, f2fs or hfsplus keep their
+own owners and modes.
+
 ## Certificates
 
 `/etc/config/server.pem` holds the CCU's certificate and private key (mode 600 on OpenCCU). It is

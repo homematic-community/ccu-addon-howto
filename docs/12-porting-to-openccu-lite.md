@@ -114,7 +114,8 @@ item:
 | --- | --- |
 | writes config or data in its own directory | fine |
 | writes under `/usr/local/<something>` | declare it in `data_dirs` (`/usr/local/<id>` is automatic) |
-| writes elsewhere (`/etc/config/…`, `/media/usb*`) | declare it in `paths`, or move it |
+| writes elsewhere (`/etc/config/…`) | declare it in `paths`, or move it |
+| uses a USB stick (`/media/usb*`) | `groups: ["usbstorage"]` and `paths: ["/media"]` (FAT, exFAT and NTFS sticks) |
 | writes a file in `/tmp` that a root process may create first | use `/run/addon-<id>/` |
 | reads `/etc/config/server.pem` | fine (`certs` group) |
 | reads other root files (`/etc/config/*.uuid`, `/etc/shadow`, …) | redesign, or declare `root` |
