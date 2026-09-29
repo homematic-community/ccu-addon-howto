@@ -41,6 +41,10 @@ grep -rnE 'dom\.(GetObject|CreateObject|DeleteObject)|rega_script|tclrega|:8181|
   CCU code path is still in it. Without a manifest, the empty marker file `openccu-lite.ok` in
   `/usr/local/addons/<id>/` says the same.
 - **No systemd unit files, no `.service` in the package.** They are ignored.
+- **`.nobackup` on program directories only** ([06](06-system-integration.md)), never on the ones with
+  settings or data. After a restore, openccu-lite does not start an addon whose tagged program
+  directories came back empty, and offers a reinstall
+  ([11](11-openccu-lite.md#logs-backups-firewall-updates)).
 
 ## Step 2: `update_script`
 

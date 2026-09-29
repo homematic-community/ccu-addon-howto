@@ -113,6 +113,7 @@ Before=addons.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
+ExecCondition=+/usr/libexec/occu/lite-addon-payload <id>     # images after 1.0.0-dev.30, see Backups
 ExecStart=/bin/sh -c '. /etc/profile; exec /usr/local/etc/config/rc.d/<id> start'
 ExecStop=/bin/sh -c '. /etc/profile; exec /usr/local/etc/config/rc.d/<id> stop'
 KillMode=control-group
@@ -598,9 +599,19 @@ Each refusal is a journal line that names the addon. What follows for an addon:
   - Log to stdout or `logger`, and don't write log files that grow on the SD card.
   - Your settings page cannot run `journalctl` as the addon user. Link the system's log page
     (`/system/log?unit=addon-<id>`) or read `GET /api/system/v1/log` with a `logs:read` token.
-- **Backups** are OpenCCU's `createBackup.sh` and honour `.nobackup` ([06](06-system-integration.md)).
-  After a restore an addon without its program files is offered for reinstall from the
-  catalogue.
+- **Backups** are OpenCCU's `createBackup.sh` and honour `.nobackup` ([06](06-system-integration.md)):
+  the contents of a tagged directory are left out, as on a CCU. After a restore an addon whose
+  program was in such directories comes back with its settings and data but without its program.
+  - From the images after `1.0.0-dev.30` such an addon is **not started**: the unit's
+    `ExecCondition` skips it (inactive, not failed, one journal line) when the rc.d script behind
+    the wrapper is missing or points to nothing, or when every tagged program directory holds
+    nothing but its tag (`tmp`, `cache` and what is under `var` do not count).
+  - The Addons page and Status say "installed before the restore; reinstall it", with a
+    *Reinstall* button where the catalogue knows the addon. Nothing is reinstalled
+    automatically.
+  - So tag your **program** directories, never the ones with settings or data. An addon that
+    wants its program in every backup leaves its directories untagged (RedMatic's
+    `ccuBackup: full` does).
 - **Firewall.**
   - occulited owns it: one rule list, on a fresh system with the default policy DROP; the web
     ports, and SSH while it is enabled, are open from local networks.

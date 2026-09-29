@@ -43,7 +43,8 @@ public release [`v1.0.0-dev.28`](https://github.com/hobbyquaker/openccu-lite/rel
   the rc.d wrapper
   [`addon-rc-wrapper`](https://github.com/hobbyquaker/openccu-lite/blob/main/buildroot-external/overlay/lite/usr/libexec/occu/addon-rc-wrapper)
   and the boot `init` pass
-  [`lite-init-addons`](https://github.com/hobbyquaker/openccu-lite/blob/main/buildroot-external/overlay/lite/usr/libexec/occu/lite-init-addons);
+  [`lite-init-addons`](https://github.com/hobbyquaker/openccu-lite/blob/main/buildroot-external/overlay/lite/usr/libexec/occu/lite-init-addons),
+  and, in the images after `1.0.0-dev.30`, the restore check `lite-addon-payload` beside them;
 - occulited's addon scripts: `info` and `uninstall` as the addon user and what the system removes
   after an uninstall (`internal/system/services.go`, `internal/system/addons.go`);
 - occulited's addon policy (the confinement drop-in, `internal/system/addonpolicy.go`), its CGI

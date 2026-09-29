@@ -79,6 +79,9 @@ Work through chapter 12 in order. Make one commit per step, and explain why in e
    - Put `openccu-lite.json` at the root of the tarball, beside `update_script` (step 12). It
      replaces the `openccu-lite.ok` marker.
    - Refuse a wrong architecture with exit 13.
+   - `.nobackup` only in program directories, never in settings or data: after a restore
+     openccu-lite does not start an addon whose tagged program directories are empty, and offers
+     a reinstall.
 3. **`update_script`.**
    - Create every directory the daemon writes to.
    - Keep the CCU start logic.
