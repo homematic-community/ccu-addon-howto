@@ -88,7 +88,10 @@ Work through chapter 12 in order. Make one commit per step, and explain why in e
    - Ship a lighttpd fragment as `etc/lighttpd.conf` in the addon's tree; on openccu-lite do not
      link or copy it into `/usr/local/etc/config/lighttpd/`, the system writes a validated copy.
 4. **rc.d script.**
-   - `start` backgrounds the daemon and returns.
+   - `start` backgrounds the daemon and returns, and exits non-zero when the daemon cannot
+     work (a bad configuration) instead of starting one that dies at once.
+   - `stop` succeeds on a daemon that is already gone: with `runtime.daemon: true` openccu-lite
+     restarts an ended daemon through `stop` and `start`, with a backoff.
    - The pid file goes to `/run/addon-<ID>/` (or the addon directory) when not root.
    - Skip boot-time network waits and `/proc/*/oom_score_adj` writes on openccu-lite.
    - `uninstall` removes only what the addon created, and tolerates a failed removal: on

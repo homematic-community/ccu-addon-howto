@@ -82,7 +82,10 @@ grep -rnE 'dom\.(GetObject|CreateObject|DeleteObject)|rega_script|tclrega|:8181|
 - **The pid file** goes to `/run/addon-<id>/` or into your addon directory when you are not root
   (`[ "$(id -u)" != 0 ]`). `/var/run/<id>.pid` is root's.
 - **`stop`** must really stop the daemon. The cgroup cleans up after it, but a clean shutdown
-  (a flushed database) is still your job.
+  (a flushed database) is still your job. It must also succeed when the daemon is already gone:
+  with `runtime.daemon: true` the system restarts an ended daemon with your `stop` and `start`.
+- **A `start` that cannot work fails** with a non-zero exit (a bad configuration), rather than
+  starting a daemon that dies at once and is then restarted in a loop.
 - **`info` stays as it is.** It is cheap and is called often.
 - **`init`** of a confined addon runs in its unit as the addon user, right before `start`, not
   as root at boot. Do nothing there that needs root; answer `init` with nothing (not a usage

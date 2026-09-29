@@ -129,6 +129,19 @@ Your rc.d script therefore keeps its contract from [03](03-rc-script.md):
 - `stop` stops the daemon;
 - the cgroup catches whatever was left behind.
 
+**A daemon that ends is restarted** (since `1.0.0-dev.30`) when the manifest declares
+`runtime.daemon: true`. systemd cannot do it for a oneshot unit, so occulited watches it: when the
+unit is still *active* but no process is left in it, occulited restarts the unit (your `stop`,
+then your `start`) after 2 s, doubling up to 5 minutes, and starts from 2 s again once the daemon
+has run for two minutes. Three such restarts within 15 minutes are a *crash-loop* warning on the
+Status page. A unit the user stopped, or one whose `start` failed, is left alone. An addon without
+the declaration is not restarted; it only gets the *Exited* warning. For your script this means:
+
+- `stop` must succeed on a daemon that is already gone;
+- a `start` that cannot work (a bad configuration) should fail with a non-zero exit, not start a
+  daemon that dies a second later: a failed start is the unit's *failed* state, which names the
+  cause, while a dying daemon is restarted until the backoff reaches five minutes.
+
 **When a unit starts** follows the manifest's `runtime` block:
 
 - undeclared: after `rfd` and `HMIPServer`, whose RPC answers once their units are active;
@@ -318,7 +331,7 @@ validate against [manifest.schema.json](https://github.com/hobbyquaker/occulited
 | `ports`, `port_info` | ports the daemon listens on, with protocol, TLS and a label. Each is a switch in the firewall, **closed by default** |
 | `needs` | `[]`, or any of `rfd`, `hmipserver`, `hs485d`: what the unit waits for. Undeclared means after `rfd` and `HMIPServer` |
 | `start` | `"early"`: starts before the interface processes (above) |
-| `daemon` | `true` when the rc.d `start` leaves a process running (a broker, a server). The unit is a oneshot that stays *active* either way; with `daemon`, a unit whose processes are all gone shows as *Exited* (red, with *Start* offered and a Status warning) instead of *Completed*. Leave it out for an addon that only prepares things. The system also learns it once the unit has held a process, but only the declaration covers the very first start |
+| `daemon` | `true` when the rc.d `start` leaves a process running (a broker, a server). The unit is a oneshot that stays *active* either way; with `daemon`, a unit whose processes are all gone shows as *Exited* (red, with *Start* offered and a Status warning) instead of *Completed*, and the system restarts the unit when its daemon ends (above). Leave it out for an addon that only prepares things. The system also learns it once the unit has held a process, but only the declaration covers the very first start |
 | `api_scopes` | scopes for the addon's own API token (below) |
 | `note` | why the addon needs what it declares, and what it contacts outside the system; shown on the Addons page |
 
