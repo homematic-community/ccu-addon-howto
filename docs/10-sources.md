@@ -18,6 +18,7 @@ Repository: [OpenCCU/OpenCCU](https://github.com/OpenCCU/OpenCCU) (the former `j
 - [buildroot-external/overlay/base-openccu/bin/createBackup.sh](https://github.com/OpenCCU/OpenCCU/blob/master/buildroot-external/overlay/base-openccu/bin/createBackup.sh): `tar --exclude-tag=.nobackup`.
 - [buildroot-external/patches/occu/0034-WebUI-Addon-Config.patch](https://github.com/OpenCCU/OpenCCU/blob/master/buildroot-external/patches/occu/0034-WebUI-Addon-Config.patch): adds `RemoveConfigPage` to the HomeMatic Tcl package.
 - [buildroot-external/patches/occu/0031-WebUI-Fix-FileUpload](https://github.com/OpenCCU/OpenCCU/tree/master/buildroot-external/patches/occu/0031-WebUI-Fix-FileUpload): OpenCCU's patched `cp_software.cgi`.
+- lighttpd's own request parser ([`src/request.c`](https://github.com/lighttpd/lighttpd1.4/blob/master/src/request.c)): a POST over HTTP/1.x without `Content-Length` and without `Transfer-Encoding` is answered 411 before any module runs; no configuration changes that. Homematic Manager's move of its settings and service CGIs to POST (`www/lib/session.tcl`, `request_is_post`, `post_params`, 3.0.0-beta.30) showed it.
 
 ## Firmware sources (eQ-3 OCCU)
 
@@ -48,7 +49,9 @@ public release [`v1.0.0-dev.28`](https://github.com/hobbyquaker/openccu-lite/rel
 - occulited's addon policy (the confinement drop-in, `internal/system/addonpolicy.go`), its CGI
   runner and static file server, the lighttpd fragment check (`internal/system/lighttpdropin.go`),
   the ReGa and ELF scans, and the menu parser;
-- the lighttpd session gate;
+- the lighttpd session gate, and the fork's lighttpd patch that takes a POST without
+  `Content-Length` as an empty body
+  ([`board/lite/patches/lighttpd/`](https://github.com/hobbyquaker/openccu-lite/tree/main/buildroot-external/board/lite/patches/lighttpd));
 - the `tclrega.so` shim;
 - the manifest: [manifest-format.md](https://github.com/hobbyquaker/occulited/blob/master/docs/manifest-format.md),
   [manifest.schema.json](https://github.com/hobbyquaker/occulited/blob/master/docs/manifest.schema.json),

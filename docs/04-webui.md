@@ -98,6 +98,29 @@ For scripted tests get a session from the JSON API: `POST /api/homematic.cgi` wi
 `{"method":"Session.login","params":{"username":"Admin","password":"..."}}` returns
 `"result": "<id>"` (note the space); use it as `@<id>@`, log out with `Session.logout`.
 
+## Change state only on a POST
+
+**A CGI changes state only on a POST; a GET only shows.** A link such as
+`settings.cgi?cmd=config&mode=x` or `service.cgi?cmd=restart` fires from anything that makes the
+browser load it: a link or a redirect on another site, an `<img>`, a prefetch. The session check
+does not help when the credential travels on its own: your own login cookie, openccu-lite's
+session cookie (`SameSite=Lax`, which a top-level navigation carries), or a `?sid=` that leaked
+through a `Referer` or a log.
+
+- Make every former link a button in a small `<form method="post">`, or a `fetch` with
+  `method: 'POST'`.
+- Read the fields from the body (`CONTENT_LENGTH` bytes of stdin,
+  `application/x-www-form-urlencoded`) and ignore change fields in the query. On Tcl 8.2 that is
+  `read stdin $len`; `read_form` in [templates/lib/querystring.tcl](../templates/lib/querystring.tcl)
+  does it and reads nothing unless the request is a POST.
+- Keep the session check on the POST; the `sid` may stay in the query.
+
+**lighttpd on the CCU3 and OpenCCU answers a POST without `Content-Length` with `411 Length
+Required`** before the CGI runs, for example `curl -X POST` with no body. Send a body, even an
+empty one (`curl --data ''`); a browser's `fetch` with an empty body already sends
+`Content-Length: 0`. openccu-lite takes such a POST as an empty body
+([11](11-openccu-lite.md#how-pages-are-served)), but the same addon still runs on the other two.
+
 ## Tcl on the CCU: write for 8.2
 
 The original CCU3 firmware runs **Tcl 8.2.3** (`/lib/tcl8.2`), OpenCCU 8.6. Code that passes on

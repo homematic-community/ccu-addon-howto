@@ -52,12 +52,35 @@ proc parse_pairs {input arrayName} {
     }
 }
 
-# the POST body as an array: read_form body -> $body(user), $body(password)
+# true for a POST: a CGI changes state only on a POST, a GET only shows
+# (docs/04-webui.md, "Change state only on a POST")
+proc request_is_post {} {
+    global env
+    if {![info exists env(REQUEST_METHOD)]} {
+        return 0
+    }
+    return [string equal [string toupper $env(REQUEST_METHOD)] "POST"]
+}
+
+# the POST body as an array: read_form body -> $body(user), $body(password).
+# Reads CONTENT_LENGTH bytes (up to 1 MiB) and only on a POST; anything else
+# leaves the array empty, so change fields in the query are never taken.
 proc read_form {arrayName} {
     upvar $arrayName arr
+    global env
     array set arr {}
+    if {![request_is_post]} {
+        return
+    }
+    set len 0
+    if {[info exists env(CONTENT_LENGTH)]} {
+        set len $env(CONTENT_LENGTH)
+    }
+    if {![regexp {^[0-9]+$} $len] || $len == 0 || $len > 1048576} {
+        return
+    }
     fconfigure stdin -translation binary
-    set data [read stdin]
+    set data [read stdin $len]
     parse_pairs $data arr
 }
 

@@ -317,6 +317,9 @@ archive to the same installer an upload takes.
   - the environment has `SERVER_SOFTWARE=occulited`, `HTTPS=on`, `REMOTE_ADDR`, and the usual
     CGI variables;
   - timeout 5 minutes, request body up to 64 MiB;
+  - a POST without `Content-Length` arrives as an empty body (the CCU3 and OpenCCU answer 411
+    for it, [04](04-webui.md#change-state-only-on-a-post)). Change state only on a POST there
+    too;
   - the output is **buffered**, so a streaming or long-polling CGI does not work. Use your own
     server for that;
   - `X-Sendfile:` works for files under `/usr/local/tmp/`, including files your user wrote with
@@ -455,7 +458,7 @@ An addon that logs users in itself (formerly through ReGa's user objects and UDP
 - **System API**, `/api/system/v1`
   ([system-api.md](https://github.com/hobbyquaker/occulited/blob/master/docs/system-api.md)).
   Useful routes: the journal of your unit (`GET /log?unit=addon-<id>`, scope `logs:read`), the
-  addon list, and the status LED. Send `Content-Length` on `POST` and `PUT`.
+  addon list, and the status LED.
 
 **Gone, with no emulation:**
 
