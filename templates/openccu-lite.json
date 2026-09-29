@@ -1,0 +1,38 @@
+{
+  "format": 1,
+  "id": "mosquitto",
+  "name": "Mosquitto",
+  "description": {
+    "de": "Der MQTT-Broker — die Brücke zu Home Assistant, ioBroker und allem anderen.",
+    "en": "The MQTT broker — the bridge to Home Assistant, ioBroker and everything else."
+  },
+  "homepage": "https://github.com/homematic-community/ccu-addon-mosquitto",
+  "licence": "EPL-2.0",
+  "release": {
+    "github": "homematic-community/ccu-addon-mosquitto",
+    "asset": "mosquitto-{arch}-{version}.tar.gz",
+    "fallback_asset": "mosquitto-{version}.tar.gz"
+  },
+  "requires": {
+    "architectures": ["armv7l", "aarch64", "x86_64"]
+  },
+  "ui": {
+    "logo": "mosquitto/www/mosquitto-text-side-28.png",
+    "session_header": true
+  },
+  "runtime": {
+    "daemon": true,
+    "needs": [],
+    "ports": [1883, 8883, 1884, 8884],
+    "port_info": {
+      "1883": {"proto": "tcp", "label": {"de": "MQTT, unverschlüsselt", "en": "MQTT, plain"}},
+      "8883": {"proto": "tcp", "tls": true, "label": {"de": "MQTT über TLS", "en": "MQTT over TLS"}},
+      "1884": {"proto": "tcp", "label": {"de": "MQTT über WebSockets, unverschlüsselt", "en": "MQTT over WebSockets, plain"}},
+      "8884": {"proto": "tcp", "tls": true, "label": {"de": "MQTT über WebSockets mit TLS", "en": "MQTT over WebSockets with TLS"}}
+    },
+    "note": {
+      "de": "Alle vier Ports sind in der Firewall geschlossen, bis sie auf der Seite Zusatzsoftware (Ports der Zusatzsoftware) geöffnet werden; die TLS-Ports nutzen das Zertifikat des Systems (certs-Gruppe).",
+      "en": "All four ports stay closed in the firewall until opened on the Addons page (Addon ports); the TLS ports use the system's certificate (certs group)."
+    }
+  }
+}

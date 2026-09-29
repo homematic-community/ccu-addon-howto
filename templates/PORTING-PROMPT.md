@@ -146,9 +146,11 @@ Work through chapter 12 in order. Make one commit per step, and explain why in e
     root of the tarball: `format`, `id`, names and descriptions (de/en), homepage, licence,
     `release` (repository and asset pattern), `requires.architectures`, `ui` (icon, logo,
     `settings_url` if needed, `session_header: true` once step 6 ships) and the full `runtime`
-    block. Validate it against `manifest.schema.json`. Draft the catalogue entry
-    `{"git": "<repository>", "manifest": "<path of openccu-lite.json>"}` for the maintainer, who
-    opens the pull request against occulited's `catalog/catalog.json`.
+    block, with a reason per key in its `note`. Start from the handbook's
+    `templates/openccu-lite.json`. Validate it against `manifest.schema.json` (JSON Schema 2020-12:
+    `npx ajv-cli validate --spec=draft2020 -s manifest.schema.json -d openccu-lite.json`). Draft
+    the catalogue entry `{"git": "<repository>", "manifest": "<path of openccu-lite.json>"}` for
+    the maintainer, who opens the pull request against occulited's `catalog/catalog.json`.
 
 ## How to verify on a system
 

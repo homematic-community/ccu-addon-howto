@@ -26,7 +26,7 @@ Pull requests welcome.
 | [10 Sources](docs/10-sources.md) | Firmware files, GitHub sources, forum threads, example addons |
 | [11 openccu-lite](docs/11-openccu-lite.md) | The CCU firmware without ReGaHSS: generated systemd units, confinement (own user, `ProtectSystem=strict`), the catalogue's `runtime` block, session gate and `X-Occulite-Session`, the metadata API, what is gone |
 | [12 Porting to openccu-lite](docs/12-porting-to-openccu-lite.md) | Step-by-step checklist to make an existing addon run on all three firmwares from one package |
-| [templates/](templates/) | Copy-and-adapt: `update_script`, rc.d script, session check, query-string helpers, update check CGI, `update_addon`, container test, and the [openccu-lite porting prompt](templates/PORTING-PROMPT.md) for your coding agent |
+| [templates/](templates/) | Copy-and-adapt: `update_script`, the openccu-lite manifest `openccu-lite.json`, rc.d script, session check, query-string helpers, update check CGI, `update_addon`, container test, and the [openccu-lite porting prompt](templates/PORTING-PROMPT.md) for your coding agent |
 
 ## Ten facts that save you a day
 

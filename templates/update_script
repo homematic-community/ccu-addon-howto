@@ -9,6 +9,10 @@
 #
 #   Replace ADDON with your addon id everywhere.
 #
+#   openccu-lite.json (templates/openccu-lite.json) sits beside this script at
+#   the root of the archive. openccu-lite reads it before this script runs;
+#   it is not this script's business, and the CCU3 and OpenCCU ignore it.
+#
 
 ADDON=mosquitto
 ADDONS_DIR=/usr/local/addons

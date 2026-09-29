@@ -170,7 +170,9 @@ Aim for no `root`. Test with the addon confined: that is the default for every n
 ## Step 7: the manifest and the catalogue entry
 
 Write `openccu-lite.json` ([11](11-openccu-lite.md#the-manifest-and-the-catalogue), the format in
-[manifest-format.md](https://github.com/hobbyquaker/occulited/blob/master/docs/manifest-format.md)):
+[manifest-format.md](https://github.com/hobbyquaker/occulited/blob/master/docs/manifest-format.md);
+[templates/openccu-lite.json](../templates/openccu-lite.json) is a working one) and have your
+packaging copy it to the root of the tarball, beside `update_script`:
 
 - `format`, `id` (the rc.d name), `name` and `description` in German and English, `homepage`,
   `licence`;
@@ -185,8 +187,9 @@ Write `openccu-lite.json` ([11](11-openccu-lite.md#the-manifest-and-the-catalogu
 
 Validate it with
 [manifest.schema.json](https://github.com/hobbyquaker/occulited/blob/master/docs/manifest.schema.json)
-(`npx ajv validate -s manifest.schema.json -d openccu-lite.json`). An addon without a `runtime`
-block is shown as "undeclared".
+(`npx ajv-cli validate --spec=draft2020 -s manifest.schema.json -d openccu-lite.json`; the schema
+is JSON Schema 2020-12, and without `--spec=draft2020` ajv refuses the schema itself). An addon
+without a `runtime` block is shown as "undeclared".
 
 To be listed in the catalogue, open a pull request against
 [occulited's `catalog/catalog.json`](https://github.com/hobbyquaker/occulited/blob/master/catalog/catalog.json)
