@@ -102,7 +102,8 @@ Work through chapter 12 in order. Make one commit per step, and explain why in e
    - Fix each one in code, or put it in the manifest's `runtime` block (`data_dirs`, `paths`,
      `groups`, `capabilities`, `ports` + `port_info`, `needs`, `note`; `daemon: true` when
      `start` leaves a process running; `start: "early"` only when the addon retries within
-     seconds and logs no errors while it waits).
+     seconds and logs no errors while it waits, see chapter 11's list). A block with only
+     `needs`/`start` still counts as undeclared.
    - Aim for no `root`. A confined addon may not declare a root-equivalent capability
      (`CAP_SYS_ADMIN`, `CAP_NET_ADMIN`, `CAP_DAC_OVERRIDE`, `CAP_CHOWN`, `CAP_SETUID`, … the
      list in chapter 11) or the groups `occulite` and `root`: the system refuses such a

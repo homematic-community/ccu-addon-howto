@@ -197,7 +197,14 @@ Validate it with
 [manifest.schema.json](https://github.com/hobbyquaker/occulited/blob/master/docs/manifest.schema.json)
 (`npx ajv-cli validate --spec=draft2020 -s manifest.schema.json -d openccu-lite.json`; the schema
 is JSON Schema 2020-12, and without `--spec=draft2020` ajv refuses the schema itself). An addon
-without a `runtime` block is shown as "undeclared".
+without a `runtime` block is shown as "undeclared", and so is one whose block says only `needs`
+and `start`: add `daemon: true` (or any key that is true for it), or `{}` for an addon that keeps
+no process.
+
+Declare `start: "early"` only after the addon does what
+[11](11-openccu-lite.md#installation-and-the-generated-unit) lists: it retries within seconds,
+logs no warning while the interfaces are not up yet, and does not take a missing interface port
+for a CCU.
 
 To be listed in the catalogue, open a pull request against
 [occulited's `catalog/catalog.json`](https://github.com/hobbyquaker/occulited/blob/master/catalog/catalog.json)
@@ -260,6 +267,9 @@ corpus to test a reader against.
   - a request with a forged `X-Occulite-Session` header from another host must fail;
   - an update over the previous release, with user data kept;
   - a reboot;
+  - with `start: "early"`: `systemctl stop rfd hmipserver; systemctl restart
+    --job-mode=ignore-requirements addon-<id>`, then start them again; the journal shows retries
+    as info and no warning;
   - uninstall;
   - an OpenCCU backup restored onto openccu-lite with your addon in it.
 - **Report** what you verified on which system, and what only passed in the container.

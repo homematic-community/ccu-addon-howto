@@ -140,6 +140,24 @@ Your rc.d script therefore keeps its contract from [03](03-rc-script.md):
 
 Units are not ordered against each other; addons start side by side.
 
+**What the early start asks of an addon in practice**, as Homematic Manager, hm2mqtt.js and
+RedMatic do it:
+
+- retry the interface `init` after 1, 2, 4 and 8 s, then every 15 s;
+- log a refused connection before the interface was ever subscribed as info, not as a warning;
+  a refusal after it had been subscribed, and every other error, stays a warning;
+- do not decide "am I on a CCU" by a listening interface port: before `rfd` runs there is none.
+  `/etc/config/InterfacesList.xml` is there from the first second;
+- an interface probe must go on probing the interfaces it did not find at the first try;
+- replace a BIN-RPC client whose socket is gone before the next attempt instead of waiting for its
+  own reconnect timer;
+- a callback for an init id you have not registered yet (the interface process re-announcing the
+  previous run's subscription) is normal, not a warning.
+
+To test the wait without a reboot: `systemctl restart addon-<id>` also pulls `rfd` and
+`HMIPServer` up again (the unit *wants* them); `systemctl stop rfd hmipserver; systemctl restart
+--job-mode=ignore-requirements addon-<id>` keeps them down while your addon starts.
+
 **`init`** of a root addon runs at boot as root, before the radio daemons, as on a CCU. For a
 confined addon it runs **inside its unit, as the addon user, right before `start`** (an
 `ExecStartPre` after the ownership step below), with the unit's sandbox: only the addon's own
@@ -230,7 +248,11 @@ What this means for your code:
 - **Upgrades.** Addons that were already installed when a system moved to openccu-lite stay
   root until the user confines them. A newly installed addon is confined. An addon without a
   `runtime` block is confined **and** shown as "undeclared", so a user who sees it fail knows
-  where to look.
+  where to look. Since `1.0.0-dev.29`, a block that says only the start order (`needs`, `start`,
+  with or without a `note`) keeps the mark too, because the start order says nothing about what the addon needs to
+  run. Any other key removes it, `daemon` and `api_scopes` included: an addon that needs nothing
+  beyond its own directories declares `{"daemon": true, "needs": [...], "start": "early"}`, or
+  `{}` when it keeps no process running.
 
 ## The manifest and the catalogue
 
