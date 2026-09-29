@@ -181,6 +181,25 @@ directories and what the manifest declares are writable. The boot pass skips a c
 `init`. An addon without an `init` case is fine: that step's exit status is ignored. The boot
 pass runs the rc.d entries only, never a `<id>.script` file directly.
 
+**Start the daemon in `start`, never in `init`.** `init` prepares: directories, generated
+configuration, nothing that keeps running. Some CCU addons start their daemon in `init` and
+answer `start` with a hint such as *use init to start*. On openccu-lite that goes wrong either
+way:
+
+- **Root addon:** the boot pass runs `init` as root in its own unit, `occu-init-addons.service`,
+  so the daemon lives there and not in `addon-<id>.service`. The addon's unit runs `start`, finds
+  nothing to do and stays `active (exited)` with no process. `systemctl stop addon-<id>` does not
+  stop the daemon, a restart from the settings page starts a second one, and the unit's journal
+  has nothing of it. The Services page names such a process *outside its unit*, and its
+  *Restart* moves it into the unit: a repair by hand, not a way to run.
+- **Confined addon:** `init` runs as the unit's `ExecStartPre`, so the daemon is already running
+  when `ExecStart` begins. systemd logs *Found left-over process … in control group while
+  starting unit* at every start.
+
+A script that must keep the CCU behaviour can branch on whether it runs inside its unit, for
+example `grep -q "addon-<id>.service" /proc/self/cgroup`, and start the daemon in `start` there.
+Nothing in openccu-lite changes how `init` runs to make up for a daemon started in it.
+
 **Do not ship a systemd unit.** A `.service` file or drop-in inside your addon directory is
 ignored, and the journal says so. The addon user owns that directory, so a unit file there
 would let the addon grant itself root. What the daemon needs goes into the manifest (below).
@@ -615,6 +634,9 @@ Each refusal is a journal line that names the addon. What follows for an addon:
 - **Logs.** Everything your unit writes to stdout and stderr lands in the journal as
   `addon-<id>`, and so do `logger -t <tag>` lines. There is no `/var/log/messages` to grep.
   - Log to stdout or `logger`, and don't write log files that grow on the SD card.
+  - Keep the daemon's output. A `start` (or a supervising loop) that sends the daemon's stdout
+    and stderr to `/dev/null`, as is common on a CCU where `run-parts` discards them anyway,
+    leaves the journal without a line of it. Inside the unit, let them through.
   - Your settings page cannot run `journalctl` as the addon user. Link the system's log page
     (`/system/log?unit=addon-<id>`) or read `GET /api/system/v1/log` with a `logs:read` token.
 - **Backups** are OpenCCU's `createBackup.sh` and honour `.nobackup` ([06](06-system-integration.md)):

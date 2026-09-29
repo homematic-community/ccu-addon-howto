@@ -70,6 +70,12 @@ public release [`v1.0.0-dev.28`](https://github.com/hobbyquaker/openccu-lite/rel
   [porting-from-rega.md](https://github.com/hobbyquaker/openccu-lite/blob/main/docs/porting-from-rega.md),
   [PORTING-PROMPT.md](https://github.com/hobbyquaker/openccu-lite/blob/main/docs/PORTING-PROMPT.md)
   (the metadata porting prompt), [security.md](https://github.com/hobbyquaker/openccu-lite/blob/main/docs/security.md).
+- where `init` and `start` run, and what a daemon started in `init` does: measured on
+  `1.0.0-dev.12` (a root addon whose script starts its daemon in `init`: the daemon in
+  `occu-init-addons.service` as root, its own unit `active (exited)`) and `1.0.0-dev.32` (the same
+  script shape confined, with systemd's left-over process warning, and as root, where the unit
+  never started the daemon); the boot pass and the generated `ExecStartPre` in the generator and
+  `lite-init-addons` above.
 - the Node.js client [occulite-client](https://github.com/hobbyquaker/occulite-client) 0.2.0: its
   README and [docs/porting.md](https://github.com/hobbyquaker/occulite-client/blob/main/docs/porting.md)
   (offering both paths, credentials and pairing, detection, CommonJS).

@@ -48,6 +48,8 @@ Everything after `info` must be cheap: the page runs it for every addon on every
 
 - `init` (from S55): create runtime directories, re-apply patches to the read-only root if you
   really must, generate config that depends on the machine. Keep it fast. Many addons do nothing here.
+  Do not start the daemon here: `start` is its place on every firmware, and on openccu-lite a
+  daemon started in `init` runs outside the addon's service unit ([11](11-openccu-lite.md)).
 - `start`: refuse if already running; `cd /`; start the daemon detached (`start-stop-daemon -S -b
   -m -p /var/run/<name>.pid --exec ...` or your own loader); log a start line with `logger`.
   Since boot order is not guaranteed for network readiness, wait a few seconds after a fresh boot

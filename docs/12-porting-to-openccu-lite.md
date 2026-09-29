@@ -94,6 +94,13 @@ grep -rnE 'dom\.(GetObject|CreateObject|DeleteObject)|rega_script|tclrega|:8181|
 - **`init`** of a confined addon runs in its unit as the addon user, right before `start`, not
   as root at boot. Do nothing there that needs root; answer `init` with nothing (not a usage
   line) if you have no use for it.
+- **The daemon starts in `start`, never in `init`.** A script that starts it in `init` and
+  answers `start` with *use init to start* leaves a root addon's daemon outside its unit (the
+  boot pass's `init` runs as root elsewhere) and a confined addon's as a left-over process in its
+  unit; [chapter 11](11-openccu-lite.md) says what follows. Move the start into `start`, or
+  branch on `/proc/self/cgroup` naming `addon-<id>.service` if the CCU behaviour must stay.
+- **Keep the daemon's stdout and stderr** instead of sending them to `/dev/null`: inside the
+  unit they are its journal.
 - **`uninstall`** runs as the addon user when the addon is confined, as root otherwise. Remove
   only what you created: the button, the www link, your lighttpd drop-in, your `nav.d` file, and
   let a failed removal pass. After a confined addon's `uninstall` the system removes the rc.d

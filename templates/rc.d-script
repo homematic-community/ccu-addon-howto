@@ -108,7 +108,7 @@ Status() {
 }
 
 case "$1" in
-    init) ;;                       # early boot: nothing to prepare here
+    init) ;;                       # early boot: prepare only - the daemon starts in start
     start) Start || exit 1 ;;
     stop) Stop || exit 1 ;;
     restart) Stop; sleep 1; Start || exit 1 ;;

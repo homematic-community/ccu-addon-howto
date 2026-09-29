@@ -103,6 +103,13 @@ Work through chapter 12 in order. Make one commit per step, and explain why in e
      the rc.d entry, the www link and the emptied directories afterwards.
    - `info` and `init` of a confined addon run as the addon user too (`init` inside the unit,
      right before `start`): neither may need root. Answer `init` with nothing if unused.
+   - The daemon starts in `start`, never in `init`: `init` only prepares. A root addon's `init`
+     runs at boot outside its unit, a confined addon's right before `start` inside it, so a
+     daemon started there escapes the unit or is left over in it. If the CCU behaviour (start in
+     `init`, *use init to start*) must stay, branch on `/proc/self/cgroup` naming
+     `addon-<ID>.service`.
+   - Do not send the daemon's stdout and stderr to `/dev/null`: inside the unit they go to the
+     journal.
 5. **Confinement.**
    - List every path the daemon, the CGIs and the helper scripts write or read outside the
      addon directory, every port, every device and every root-only operation.
