@@ -111,6 +111,8 @@ item:
 | writes a file in `/tmp` that a root process may create first | use `/run/addon-<id>/` |
 | reads `/etc/config/server.pem` | fine (`certs` group) |
 | reads other root files (`/etc/config/*.uuid`, `/etc/shadow`, …) | redesign, or declare `root` |
+| reads another addon's files (its token, its configuration) | not possible: a confined addon's tree is closed to others. Keep your own copy, or a location both share deliberately |
+| writes a secret (password file, token, key) | write it `0600`, and never under `www`, which stays world-readable |
 | binds a port < 1024 | `capabilities: ["CAP_NET_BIND_SERVICE"]`, or use a high port |
 | opens a serial or USB device | `groups: ["dialout"]` (or the device's group) |
 | changes the firewall | show the state and point to the system's firewall settings instead; declare `ports` |

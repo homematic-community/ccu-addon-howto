@@ -214,6 +214,20 @@ ReadWritePaths=-/usr/local/addons/<id> -/usr/local/etc/config/addons/<id> -/usr/
 Before every start, a root step gives the addon's own directories back to the addon user. It
 does not follow links.
 
+**Your tree is yours alone** (since `1.0.0-dev.29`). The same step also closes a confined
+addon's directories to everyone else: it takes group-write and the world's read and write bits
+off, so a directory ends at most `0751` (traversable, not listable) and a file at most `0640`
+(a program `0751`), with the group the addon's own. One addon cannot read another's
+configuration, sessions or credentials, which is new: on a CCU every addon is root and reads
+everything. What stays readable is your `www` tree and the directory that holds it, because the
+system serves them to the browser. So:
+
+- **keep secrets out of `www`**;
+- **write a credential file `0600` yourself.** The step only ever tightens, never loosens, and
+  it runs before the next start, not when you write the file;
+- an addon that reached into another addon's files (a shared token, a configuration) needs its
+  own copy, or a location both deliberately share.
+
 What this means for your code:
 
 - **Writable**, in short:
