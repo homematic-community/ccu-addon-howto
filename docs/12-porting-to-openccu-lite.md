@@ -53,17 +53,19 @@ grep -rnE 'dom\.(GetObject|CreateObject|DeleteObject)|rega_script|tclrega|:8181|
   - moves a daemon that `update_script` started into its unit;
   - restarts an addon that was running before the update when the script's own start failed.
 
-  If you want the start to happen in the unit right away, use this branch (RedMatic does):
+  If you want the start to happen in the unit right away, use this branch, with the detection
+  rule from [11](11-openccu-lite.md#platform-at-a-glance) (a `LITE=` line in `/VERSION` or an
+  executable `/usr/bin/occulited`; never `VARIANT=lite`):
 
   ```sh
-  if grep -qx 'VARIANT=lite' /VERSION 2>/dev/null; then
+  if grep -q '^LITE=' /VERSION 2>/dev/null || [ -x /usr/bin/occulited ]; then
       systemctl start addon-<id>.service 2>/dev/null || true
   elif [ ! -e /etc/init.d/S00InstallAddon ]; then
       cd / && /usr/local/etc/config/rc.d/<id> start
   fi
   ```
-- **`Config-Url`.** If your `Config-Url` is not your settings page, write the right one when
-  `VARIANT=lite`, or name it in the manifest's `ui.settings_url`.
+- **`Config-Url`.** If your `Config-Url` is not your settings page, write the right one on
+  openccu-lite (the same rule), or name it in the manifest's `ui.settings_url`.
 - **`ln -sf` over `rc.d/<id>`** is fine: the system adopts the new script again.
 - **Firewall.** Do not touch `firewall.conf` or `iptables` on openccu-lite (there is no
   `libfirewall`). Ports are declared in the manifest (step 7).
@@ -225,8 +227,10 @@ corpus to test a reader against.
 ## Step 9: test
 
 - **The CCU paths:** your existing tests, unchanged and green. On a CCU nothing may differ.
-- **Container test** ([08](08-testing.md)): add a variant with `VARIANT=lite` and `LITE=…` in
-  `/VERSION` and without `/var/log/messages`. Run the service as a non-root user with only the
+- **Container test** ([08](08-testing.md)): add a variant with `LITE=<version>` (and
+  `VARIANT=lite`, as the images write both) in `/VERSION` and without `/var/log/messages`, and one
+  with an executable `occulited` but no `LITE=` line: both must count as openccu-lite, a
+  `/VERSION` with neither as a CCU. Run the service as a non-root user with only the
   confined writable paths writable, and send the session header through a fake `/api/auth/v1/state`.
 - **On an openccu-lite system:**
   - install through the Addons page, confined;

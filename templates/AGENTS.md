@@ -33,8 +33,9 @@ https://github.com/homematic-community/ccu-addon-howto.
 - No `LD_LIBRARY_PATH` anywhere: bundled binaries use their patched RPATH.
 - Every CGI that reads or changes configuration checks the CCU session (`lib/session.tcl`).
 - Keep the package small; no web frameworks in `www/`.
-- openccu-lite (no ReGa, systemd, the addon confined as `addon-ADDON`): detect it with
-  `VARIANT=lite` in `/VERSION`, write only to the addon's own paths, keep the pid file in
+- openccu-lite (no ReGa, systemd, the addon confined as `addon-ADDON`): detect it with a `LITE=`
+  line in `/VERSION` or an executable `/usr/bin/occulited` (never `VARIANT=lite`), write only to
+  the addon's own paths, keep the pid file in
   `/run/addon-ADDON/`, do not assume `/var/log/messages`, hide the self-updater, and use no ReGa
   call except the session check (handbook chapters 11 and 12).
 - Test on all firmwares before calling a change done; the container test is not enough.

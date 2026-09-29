@@ -44,15 +44,18 @@ Then read this repository: its `AGENTS.md`/`CLAUDE.md` if any, the build scripts
 1. **One package for all firmwares.** Every CCU3 and OpenCCU code path stays. Behaviour on a
    CCU is identical before and after your change.
 2. **Detect at runtime, never at build time.**
-   - Firmware: `grep -qx 'VARIANT=lite' /VERSION` in shell; a `^LITE=` line in `/VERSION` in Tcl.
+   - Firmware, one rule in every language: **a `LITE=` line in `/VERSION`, or an executable
+     `/usr/bin/occulited`** — `grep -q '^LITE=' /VERSION 2>/dev/null || [ -x /usr/bin/occulited ]`
+     in shell, `regexp -line {^LITE=}` or `file exists` in Tcl, `/^LITE=/m` or `fs.existsSync` in
+     JS. `VARIANT=lite` is also in `/VERSION` but is not the marker to test.
    - Metadata API: `GET http://127.0.0.1/api/meta/v1/version` answers `{"api":"meta",…}`.
    - No new mandatory configuration.
 3. **No user configuration may break.** ReGa-only options stay accepted. On openccu-lite they
    log one line and do nothing.
 4. **Only the session check may use ReGa.** The system's `tclrega.so` shim answers
    `system.GetSessionVarStr` and nothing else. Do not add other ReGa calls.
-5. **Never trust `X-Occulite-Session` without asking the system.** Use it only when `VARIANT=lite`,
-   and accept it only after `GET http://127.0.0.1/api/auth/v1/state` with
+5. **Never trust `X-Occulite-Session` without asking the system.** Use it only when the detection
+   rule says openccu-lite, and accept it only after `GET http://127.0.0.1/api/auth/v1/state` with
    `Authorization: Bearer <value>` answers `authenticated: true` with the same `sid`.
 6. **No systemd unit files, no `iptables`, no writes to the read-only root, no `mount`, no new
    root requirements.** What the daemon needs is declared in the `runtime` block of the
@@ -126,10 +129,11 @@ Work through chapter 12 in order. Make one commit per step, and explain why in e
    - same output shape.
 10. **Tests.**
     - Existing tests stay green.
-    - Add a container variant with `VARIANT=lite`, no `/var/log/messages`, the service running
-      as a non-root user with only the confined paths writable, and a fake
-      `/api/auth/v1/state`. Cover the header accepted, a forged header refused, and the `?sid=`
-      fallback.
+    - Add a container variant with a `LITE=` line in `/VERSION`, no `/var/log/messages`, the
+      service running as a non-root user with only the confined paths writable, and a fake
+      `/api/auth/v1/state`. Cover the header accepted, a forged header refused, the `?sid=`
+      fallback, and the detection: `LITE=` alone and `occulited` alone are openccu-lite, neither
+      is a CCU.
     - Add provider tests against a fake `/api/meta/v1` for metadata addons.
 11. **Docs.**
     - An "openccu-lite" section in the README: what works, what does not, the ports to open,

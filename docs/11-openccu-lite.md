@@ -48,11 +48,25 @@ list at the end names what may still change.
 | Firewall | `firewall.conf` via `libfirewall.tcl`, default `MOST_OPEN` | occulited's own rule list, default policy **DROP** on a fresh system; `libfirewall` is not in the image. Addon ports are switches the user opens |
 | Radio interfaces | 2001/2000/2010 via lighttpd, plus the daemons' own ports | **loopback only**: `rfd` 127.0.0.1:32001, `hs485d` :32000, `HMIPServer` :32010. The daemons run as their own users (`rfd`, `hs485d`, `hmipserver`). Classic RPC from the LAN is an opt-in; lite-rpc (`/api/rpc/v1`) is the API way |
 
-**Detection.** `/VERSION` keeps OpenCCU's `VERSION`, `PRODUCT` and `PLATFORM` lines and adds
-`VARIANT=lite` and `LITE=<version>`. Use `grep -qx 'VARIANT=lite' /VERSION` in shell and
-`regexp -line {^LITE=}` in Tcl. `/usr/bin/occulited` is a second signal. A CGI can also look
-for `SERVER_SOFTWARE=occulited` in its environment. For the metadata API use the version probe
-described below, not `/VERSION`.
+**Detection: one rule.** A system is openccu-lite when **`/VERSION` has a `LITE=` line, or
+`/usr/bin/occulited` is an executable file**. The same rule in every language:
+
+```sh
+grep -q '^LITE=' /VERSION 2>/dev/null || [ -x /usr/bin/occulited ]      # sh
+```
+```tcl
+[regexp -line {^LITE=} $version] || [file exists /usr/bin/occulited]   ;# Tcl (templates/lib/session.tcl)
+```
+```js
+/^LITE=/m.test(fs.readFileSync('/VERSION', 'utf8')) || fs.existsSync('/usr/bin/occulited')   // JS
+```
+
+`/VERSION` keeps OpenCCU's `VERSION`, `PRODUCT` and `PLATFORM` lines; the image build appends
+`VARIANT=lite` and `LITE=<version>` (`1.0.0-dev.30`, say). **`VARIANT=lite` is written too, but it
+is not the marker to test.** A CCU3 and OpenCCU have neither the `LITE=` line nor `occulited`.
+RedMatic, hm2mqtt.js, ccu-addon-mosquitto and Homematic Manager all use this rule. A CGI can also
+look for `SERVER_SOFTWARE=occulited` in its environment. For the metadata API use the version
+probe described below, not `/VERSION`.
 
 **Switching.** `/usr/local` survives an update from OpenCCU to openccu-lite and back. Addons
 installed on OpenCCU therefore come along. On the first boot after a switch, occulited:
@@ -347,8 +361,8 @@ Authorization: Bearer <header value>
 Rules for the header:
 
 - **Trust it only on openccu-lite.** A CCU forwards a client's header untouched, and your loopback
-  port is open to every local process. Check `/VERSION` first and validate every value against
-  `/state`.
+  port is open to every local process. Apply the detection rule above first and validate every
+  value against `/state`.
 - Accept a session only when `/state` answers `authenticated: true` with the same `sid`. Refuse
   API tokens there.
 - Fall back to `?sid=` and the shim when there is no header.
@@ -370,8 +384,8 @@ An addon that logs users in itself (formerly through ReGa's user objects and UDP
 - **Settings page**: your `Config-Url:` from `info` (and `hm_addons.cfg`). It is shown as the
   *Settings* button on the Addons page and framed at `/addon-settings/<id>`.
   - If your `Config-Url` is not the settings page (Homematic Manager's hands over to its app),
-    let `update_script` write the right one when `VARIANT=lite`, or name it in the manifest's
-    `ui.settings_url`.
+    let `update_script` write the right one on openccu-lite (the detection rule above), or name
+    it in the manifest's `ui.settings_url`.
 - **Frontend**: a lighttpd fragment that proxies a plain path under `/addons/` makes the addon an
   entry in the addon menu; the user can pin it as a tab. For anything the parser cannot read,
   declare the entry explicitly in `/usr/local/etc/config/nav.d/<id>.json`:
