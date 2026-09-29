@@ -588,6 +588,14 @@ Each refusal is a journal line that names the addon. What follows for an addon:
   ([system-api.md](https://github.com/hobbyquaker/occulited/blob/master/docs/system-api.md)).
   Useful routes: the journal of your unit (`GET /log?unit=addon-<id>`, scope `logs:read`), the
   addon list, and the status LED.
+- **For Node.js: [occulite-client](https://github.com/hobbyquaker/occulite-client)**
+  ([npm](https://www.npmjs.com/package/occulite-client), 0.2.0, no runtime dependencies, ESM,
+  and `require()` works on Node 20.19 and later). One client for lite-rpc's calls and event stream, the state store, the
+  history, the metadata API and client pairing, with the reconnect, resume and resync handling
+  built in, and a probe that tells openccu-lite, a CCU and an unreachable system apart. It does
+  not speak to a CCU: keep homematic-xmlrpc, binrpc and homematic-rega for that path. Its
+  [porting guide](https://github.com/hobbyquaker/occulite-client/blob/main/docs/porting.md)
+  shows how one program offers both, with hm2mqtt.js as the worked example.
 
 **Gone, with no emulation:**
 

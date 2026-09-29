@@ -143,7 +143,9 @@ Work through chapter 12 in order. Make one commit per step, and explain why in e
      `/system/log?unit=addon-<ID>` or uses the log API with a `logs:read` token.
    - No code may assume `/var/log/messages` exists.
 9. **Metadata** (only for reader/writer addons). Add a second provider next to the ReGa one, as
-   described in chapter 12, step 8:
+   described in chapter 12, step 8. For Node.js, build it on the npm package `occulite-client`
+   (https://github.com/hobbyquaker/occulite-client, read its `docs/porting.md` first), loaded
+   lazily in the openccu-lite code path; keep the CCU libraries for the CCU path:
    - version probe, `/snapshot`, `/events/sse?since=`;
    - local token for reads, `meta:write` for writes; off the system a token option or client
      pairing;

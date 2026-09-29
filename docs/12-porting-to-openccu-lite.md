@@ -224,7 +224,12 @@ The system reads the manifest at your latest release tag, so release once after 
 
 ## Step 8: names, rooms and functions (metadata addons only)
 
-Keep the ReGa provider and add a second one with the **same public surface**:
+Keep the ReGa provider and add a second one with the **same public surface**. For a Node.js
+addon that is: keep your CCU path (homematic-xmlrpc, binrpc, homematic-rega) and add an
+openccu-lite backend on [occulite-client](https://github.com/hobbyquaker/occulite-client); its
+[porting guide](https://github.com/hobbyquaker/occulite-client/blob/main/docs/porting.md) walks
+through it with hm2mqtt.js. Load it lazily, in the code path that found openccu-lite, so a CCU
+never loads it. The points below are what such a backend does, in any language:
 
 1. **Detection** at start and on reconnect: `GET http://127.0.0.1/api/meta/v1/version`.
    - A JSON answer with `"api":"meta"` means openccu-lite.
