@@ -2,8 +2,9 @@
 
 *For addon maintainers. Open your coding agent (Claude Code, Codex, Copilot agent mode, …) in
 your addon's repository and paste everything below the line. Replace `<ADDON>` and `<ID>`
-(the name of the rc.d script). Written for openccu-lite `1.0.0-dev.28` (September 2026); check
-[chapter 11](../docs/11-openccu-lite.md) for changes before you use it.*
+(the name of the rc.d script). Written for openccu-lite `1.0.0-dev.28` and what landed up to the
+end of September 2026; check [chapter 11](../docs/11-openccu-lite.md) for changes before you use
+it.*
 
 ---
 

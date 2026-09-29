@@ -15,8 +15,10 @@ as a prompt for a coding agent.
 **Status: September 2026, openccu-lite `1.0.0-dev.28`,** the first public release (a
 pre-release for test systems, [releases](https://github.com/hobbyquaker/openccu-lite/releases)).
 Everything below was read from the code and the documents of that release; the first version of
-this chapter (`1.0.0-dev.1`) was also checked on test systems (x86_64 OVA, Raspberry Pi 4). The
-list at the end names what may still change.
+this chapter (`1.0.0-dev.1`) was also checked on test systems (x86_64 OVA, Raspberry Pi 4).
+What landed later names its version ("since `1.0.0-dev.29`", "images after `1.0.0-dev.30`"),
+read from the code as of the end of September 2026. The list at the end names what may still
+change.
 
 **The references this chapter summarises** (normative where they say so):
 
