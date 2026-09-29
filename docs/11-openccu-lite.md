@@ -275,8 +275,8 @@ validate against [manifest.schema.json](https://github.com/hobbyquaker/occulited
 | Key | Meaning |
 | --- | --- |
 | `root` | `true` for an addon that genuinely needs root. Shown as unsafe |
-| `capabilities` | e.g. `["CAP_NET_BIND_SERVICE"]` |
-| `groups` | supplementary groups, e.g. `["dialout"]` |
+| `capabilities` | e.g. `["CAP_NET_BIND_SERVICE"]`, `CAP_NET_RAW`. A confined addon may not declare a root-equivalent one (below) |
+| `groups` | supplementary groups, e.g. `["dialout"]`. A confined addon may not declare `occulite` or `root` (below) |
 | `data_dirs` | extra directories under `/usr/local/` that are chowned to the addon and writable. `/usr/local/<id>` is taken automatically when it exists |
 | `paths` | extra writable paths, not chowned |
 | `ports`, `port_info` | ports the daemon listens on, with protocol, TLS and a label. Each is a switch in the firewall, **closed by default** |
@@ -285,6 +285,17 @@ validate against [manifest.schema.json](https://github.com/hobbyquaker/occulited
 | `daemon` | `true` when the rc.d `start` leaves a process running (a broker, a server). The unit is a oneshot that stays *active* either way; with `daemon`, a unit whose processes are all gone shows as *Exited* (red, with *Start* offered and a Status warning) instead of *Completed*. Leave it out for an addon that only prepares things. The system also learns it once the unit has held a process, but only the declaration covers the very first start |
 | `api_scopes` | scopes for the addon's own API token (below) |
 | `note` | why the addon needs what it declares, and what it contacts outside the system; shown on the Addons page |
+
+**What a confined addon may not declare** (since `1.0.0-dev.29`): the capabilities that are root
+in effect, `CAP_SYS_ADMIN`, `CAP_SYS_MODULE`, `CAP_SYS_RAWIO`, `CAP_SYS_PTRACE`,
+`CAP_SYS_CHROOT`, `CAP_SYS_BOOT`, `CAP_DAC_OVERRIDE`, `CAP_DAC_READ_SEARCH`, `CAP_FOWNER`,
+`CAP_CHOWN`, `CAP_SETUID`, `CAP_SETGID`, `CAP_SETPCAP`, `CAP_MKNOD`, `CAP_BPF`,
+`CAP_MAC_ADMIN`, `CAP_MAC_OVERRIDE` and `CAP_NET_ADMIN` (it can flush the firewall or reroute
+the system's traffic), and the groups `occulite` (the privilege helper's group, root by proxy)
+and `root`. Such a manifest is **refused at install**: the journal says why, the package installs
+as if it carried no manifest, and nothing on the list ever reaches a confined unit. An
+addon that truly needs one of them runs as root: `root: true` in the manifest, or the user's
+choice on the Services page, shown as *root (unsafe)*. A root addon may declare any of them.
 
 **The catalogue** is one JSON file in the occulited repository,
 [`catalog/catalog.json`](https://github.com/hobbyquaker/occulited/blob/master/catalog/catalog.json)

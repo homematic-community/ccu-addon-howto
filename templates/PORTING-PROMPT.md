@@ -103,7 +103,10 @@ Work through chapter 12 in order. Make one commit per step, and explain why in e
      `groups`, `capabilities`, `ports` + `port_info`, `needs`, `note`; `daemon: true` when
      `start` leaves a process running; `start: "early"` only when the addon retries within
      seconds and logs no errors while it waits).
-   - Aim for no `root`.
+   - Aim for no `root`. A confined addon may not declare a root-equivalent capability
+     (`CAP_SYS_ADMIN`, `CAP_NET_ADMIN`, `CAP_DAC_OVERRIDE`, `CAP_CHOWN`, `CAP_SETUID`, … the
+     list in chapter 11) or the groups `occulite` and `root`: the system refuses such a
+     manifest. Redesign, or declare `root: true` and say why in the `note`.
    - Use no shared `/tmp` files; use `/run/addon-<ID>/`.
 6. **Web UI.**
    - Switch the CGIs to `request_session_ok` from the template, and add a `role` check for

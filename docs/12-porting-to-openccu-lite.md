@@ -115,6 +115,7 @@ item:
 | opens a serial or USB device | `groups: ["dialout"]` (or the device's group) |
 | changes the firewall | show the state and point to the system's firewall settings instead; declare `ports` |
 | calls `chown`, `iptables`, `ip link` | root only. Avoid it, or declare `root: true` |
+| needs `CAP_NET_ADMIN`, `CAP_SYS_ADMIN`, `CAP_DAC_OVERRIDE` or another root-equivalent capability, or the `occulite` group | refused for a confined addon ([11](11-openccu-lite.md#the-manifest-and-the-catalogue)): redesign, or declare `root: true` |
 | calls `mount` | not even as root. Avoid it; only if there is no other way, `root: true` plus `capabilities: ["CAP_SYS_ADMIN"]` |
 | runs `journalctl` | not as the addon user (step 6) |
 | installs cron or monit files | cron runs as root and monit does not exist; keep scheduling and supervision inside the daemon |
