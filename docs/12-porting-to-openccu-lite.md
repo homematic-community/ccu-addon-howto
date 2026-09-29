@@ -140,6 +140,12 @@ Aim for no `root`. Test with the addon confined: that is the default for every n
 - **Pass `?sid=` on only where it arrived.** A page opened without `?sid=` (after
   `ui.session_header`) must work without it, so don't fail on a missing `sid` when the header is
   there.
+- **State changes only on a POST** ([04](04-webui.md#change-state-only-on-a-post)). On
+  openccu-lite a link from another site opens your page without its query, and a cross-site
+  request with the cookie is refused
+  ([11](11-openccu-lite.md#requests-from-other-sites)); a page on your server's own port that
+  posts to `/addons/<id>/` counts as another site. Browser calls to `/api/…` that change state
+  send `X-Occulite-Request: 1` (or the session as `Authorization: Bearer`).
 - **No ReGa scripts in CGIs** other than the session check. The shim raises a Tcl error for
   anything else.
 - **CGIs are buffered and run as your user.** Move streaming, long polling and progress output to

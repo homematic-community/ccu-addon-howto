@@ -340,8 +340,13 @@ archive to the same installer an upload takes.
 
 ### Sessions
 
-Session ids on openccu-lite are 26 characters (`[A-Z2-7]`). The browser carries them in the
-`occulite_session` cookie over HTTP and `__Secure-occulite_session` over HTTPS.
+Session ids on openccu-lite are 26 characters (`[A-Z2-7]`). A login sets two cookies with the
+same id (`HttpOnly`, `SameSite=Lax`): the **session cookie** `occulite_session`
+(`__Secure-occulite_session` over HTTPS) with `Path=/api`, which reaches the API and nothing
+else, and the **gate cookie** `occulite_gate` (`__Secure-occulite_gate`) with `Path=/addons/`,
+which opens the addon pages and is no credential on the API. So no request to your pages, CGIs or
+proxied server carries the API's cookie. (Up to `1.0.0-dev.30` there was one cookie,
+`occulite_session` at `Path=/`; the split is in the images after it.)
 
 **`?sid=@xxxxxxxxxx@` still works as a legacy alias.**
 
@@ -391,6 +396,38 @@ true}` in that release's manifest; the shell then opens it without `?sid=`. Keep
 
 An addon that logs users in itself (formerly through ReGa's user objects and UDP 1998) uses
 `POST /api/auth/v1/login {"username","password"}`.
+
+### Requests from other sites
+
+A browser sends a `SameSite=Lax` cookie on a top-level navigation from another site, and on every
+request from the *same site*, which includes another port of this host. So the system checks
+where a request under `/addons/` comes from when its only credential is the cookie (since
+`1.0.0-dev.28`; lighttpd's gate and occulited's CGI runner apply the same rule):
+
+- **`Sec-Fetch-Site: cross-site` or `same-site`:** refused with `403` and
+  `{"error":"cross-site",…}`, except a top-level navigation (a `GET` of a document). That one
+  opens your page **without its query string** (a `302` to the bare path), so a link from
+  elsewhere cannot carry `?cmd=…`.
+- **`same-origin` or `none`** (a typed URL, a bookmark) passes.
+- **A browser without `Sec-Fetch-*` headers:** a `GET` passes; a `POST`, `PUT` or `DELETE`
+  passes only when its `Origin` (else its `Referer`) names this system, or when it sends
+  neither.
+- **Not affected:** a request accepted by its `?sid=`, which another site cannot know; API calls
+  with a header credential (a token, or the session as `Authorization: Bearer`, which is what your
+  backend sends with the `X-Occulite-Session` value); your own pages calling your own paths.
+
+Each refusal is a journal line that names the addon. What follows for an addon:
+
+- **Change state only on a POST** ([04](04-webui.md#change-state-only-on-a-post)), never on a
+  `GET` with a query. The system's redirect is a backstop, not the protection: on a CCU there is
+  none.
+- **A page your own server delivers on its own port** (Node-RED on `:1880`, say) that posts to
+  `/addons/<id>/…` with the cookie is refused (`same-site`). Call from the page's own origin, or
+  from your backend with the header credential.
+- **A page that calls the system API from the browser** (images after `1.0.0-dev.30`): the
+  request carries the session cookie (its path is `/api`), and a `POST`, `PUT`, `PATCH` or
+  `DELETE` on that cookie alone also needs the header `X-Occulite-Request` with any value, or it
+  is refused with `403 request-header`. A call with `Authorization: Bearer` needs none.
 
 ### Menu: settings page vs. frontend
 
@@ -503,8 +540,6 @@ An addon that logs users in itself (formerly through ReGa's user objects and UDP
 
 As of `1.0.0-dev.28`, these may still change:
 
-- the session cookie kept away from `/addons/`, with API writes from addon pages then needing a
-  header credential;
 - signed releases, and catalogue installs refused without a valid signature.
 
 Build against what is described above as current, and check this chapter again before a release.

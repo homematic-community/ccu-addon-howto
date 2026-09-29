@@ -111,6 +111,10 @@ Work through chapter 12 in order. Make one commit per step, and explain why in e
    - If the addon has its own HTTP server, give it the same header check.
    - Pages must work without `?sid=` when the header is there, and still with `?sid=` on a CCU.
    - No streaming CGIs.
+   - CGIs and the addon's server change state only on a POST (or PUT/DELETE), never on a GET
+     with a query; the POST reads its fields from the body. openccu-lite refuses cross-site
+     requests that carry its cookie, and a page on the addon's own port counts as another site.
+     Browser calls to the system's `/api/` that change state send `X-Occulite-Request: 1`.
    - Keep the frontend proxy under `/addons/`, proxying to this system only; no `include`,
      `cgi.*` or `$SERVER["socket"]` in the fragment. Add `nav.d/<ID>.json` if needed.
    - Follow `?theme=`/`?lang=` if feasible.
