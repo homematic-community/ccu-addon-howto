@@ -220,13 +220,35 @@ wrapper in its place as `rc.d/<id>`:
   so an addon that keeps its configuration for a reinstall keeps it. An `rm` of those entries in
   your script fails quietly as the addon user; that is expected.
 
+  Since `1.0.0-dev.37` the system also removes **every `addon-policy/<id>.*` file**: the policy,
+  its systemd drop-in, the start order, the early start and the stored manifest. A reinstall
+  therefore starts clean from the package's manifest - mode, ports, `needs`, `start` - and
+  inherits nothing from the version before; at every start occulited sweeps the policy files of
+  ids that have no rc.d entry any more. **The addon's uid is kept:** every uid handed to an addon
+  is recorded in `/usr/local/etc/config/addon-uids.json`, which the uninstall leaves alone, so a
+  reinstall under the same id runs as its old uid (the files it left on the userfs stay its own)
+  and no other addon is ever given that uid. The API's answer to an uninstall
+  (`POST /api/system/v1/addons/<id>/uninstall`) is `{ok, output, system_removed}`: `output` is your
+  script's output unchanged, refused `rm` lines included, `system_removed` the list of what the
+  system removed after it, in order. The journal has the same: `journalctl -t addon-install`
+  shows your script's lines, then that list - for a confined addon with the note that the
+  script ran as `addon-<id>` - then how the run ended.
+
+  Because `uninstall` and `stop` both run as the addon user when the addon is confined (`stop` is
+  the unit's `ExecStop`), a step that needs root is not available to either, and the only root
+  step an addon has is `update_script`. So a file `update_script` puts outside the addon's tree,
+  or a line it adds to a root file, is one that nobody removes: do not create such things, or
+  name them in your README so the user can remove them.
+
 If an update copies a fresh script over the wrapper, the script is adopted again after the
 install. You need not change anything for this.
 
 ## Confinement
 
 By default an addon runs as `addon-<id>` (uid ≥ 30000, home `/usr/local/addons/<id>`, shell
-`/bin/false`). The unit gets this drop-in:
+`/bin/false`). The uid stays the addon's across firmware updates and, since `1.0.0-dev.37`, across
+an uninstall and reinstall (the uid registry `/usr/local/etc/config/addon-uids.json`; the policy
+files themselves are removed by an uninstall, see above). The unit gets this drop-in:
 
 ```ini
 [Service]

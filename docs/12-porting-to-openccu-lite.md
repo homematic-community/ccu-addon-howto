@@ -105,7 +105,14 @@ grep -rnE 'dom\.(GetObject|CreateObject|DeleteObject)|rega_script|tclrega|:8181|
   only what you created: the button, the www link, your lighttpd drop-in, your `nav.d` file, and
   let a failed removal pass. After a confined addon's `uninstall` the system removes the rc.d
   entry, the www link, the `hm_addons.cfg` entry, its copy of your lighttpd fragment and your
-  emptied directories itself.
+  emptied directories itself - and, since `1.0.0-dev.37`, every `addon-policy/<id>.*` file, so a
+  reinstall starts from the package's manifest and inherits no policy; the addon's uid is kept
+  for a reinstall. The API answers `{ok, output, system_removed}` (your output unchanged, then
+  what the system removed), and `journalctl -t addon-install` shows the same after your
+  script's lines. A step that needs root has no place here: `stop` runs as the addon user too,
+  and `update_script` is the only root step an addon has - so do not leave anything outside your
+  tree that only root can remove, or name it in your README
+  ([chapter 11](11-openccu-lite.md#installation-and-the-generated-unit)).
 - **Wait for the network after boot, CCU3 only.** Skip the wait on openccu-lite: the unit
   already starts after the network, and after the radio daemons unless the manifest says
   otherwise (`needs`, `start`).

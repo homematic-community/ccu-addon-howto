@@ -48,7 +48,11 @@ public release [`v1.0.0-dev.28`](https://github.com/hobbyquaker/openccu-lite/rel
   the `usbstorage` owner of FAT, exFAT and NTFS sticks in
   [`usbmount.conf`](https://github.com/hobbyquaker/openccu-lite/blob/main/buildroot-external/overlay/lite/etc/usbmount/usbmount.conf);
 - occulited's addon scripts: `info` and `uninstall` as the addon user and what the system removes
-  after an uninstall (`internal/system/services.go`, `internal/system/addons.go`);
+  after an uninstall (`internal/system/services.go`, `internal/system/addons.go`); for
+  `1.0.0-dev.37` the policy files' removal, the `{ok, output, system_removed}` answer, the
+  `addon-install` journal lines and the uid registry (`internal/system/addonuids.go`), as
+  [`docs/system-api.md`](https://github.com/hobbyquaker/occulited/blob/master/docs/system-api.md)'s
+  `POST /addons/{id}/uninstall` row documents them;
 - occulited's addon policy (the confinement drop-in, `internal/system/addonpolicy.go`), its CGI
   runner and static file server, the lighttpd fragment check (`internal/system/lighttpdropin.go`),
   the ReGa and ELF scans, and the menu parser;

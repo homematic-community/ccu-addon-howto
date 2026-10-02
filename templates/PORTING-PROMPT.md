@@ -100,7 +100,10 @@ Work through chapter 12 in order. Make one commit per step, and explain why in e
    - Skip boot-time network waits and `/proc/*/oom_score_adj` writes on openccu-lite.
    - `uninstall` removes only what the addon created, and tolerates a failed removal: on
      openccu-lite it runs as the addon user when the addon is confined, and the system removes
-     the rc.d entry, the www link and the emptied directories afterwards.
+     the rc.d entry, the www link, the emptied directories and (since `1.0.0-dev.37`) the
+     addon's policy files afterwards, so a reinstall starts from the package's manifest; the
+     addon's uid is kept. Nothing an addon leaves outside its tree is removed by anyone: do not
+     create such things, or name them in the README.
    - `info` and `init` of a confined addon run as the addon user too (`init` inside the unit,
      right before `start`): neither may need root. Answer `init` with nothing if unused.
    - The daemon starts in `start`, never in `init`: `init` only prepares. A root addon's `init`
