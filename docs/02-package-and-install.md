@@ -48,6 +48,15 @@ Consequences: the working directory of `update_script` is deleted right after it
 service started from there must `cd /` first or it will later fail to spawn children from a
 vanished cwd (RedMatic issue #599). The temp dir lives on the same partition as the addon.
 
+`update_script` runs **inside the WebUI's request**: `cp_software.cgi` (`action_install_go`), a
+CGI of the CCU's own lighttpd, runs `/bin/install_addon` and writes its answer, and after exit
+`10` triggers the reboot, only when it has returned. Whatever stops lighttpd meanwhile kills that
+request, above all `/etc/init.d/S50lighttpd restart` for a new proxy rule. The browser gets a
+broken answer: OpenCCU 3.89.8's WebUI stays in its greyed dialog, 3.89.14 shows "Error while
+loading the following file: /config/cp_software.cgi". The CGI dies before the reboot, so a fresh
+install's service is not started, although the files are in place. Reload lighttpd instead
+([04](04-webui.md)).
+
 ### Original CCU3 firmware: at shutdown, in a chroot
 
 `cp_software.cgi` touches `/usr/local/.doAddonInstall` and reboots. During the **shutdown**
@@ -102,7 +111,9 @@ steps:
 11. On an update (`EXITCODE=0`) and **only when `/etc/init.d/S00InstallAddon` does not exist**
     (that is: not inside the CCU3 chroot): `cd /` and start the service. OpenCCU does not reboot
     on 0 and nothing else would start it.
-12. `exit $EXITCODE`.
+12. A new proxy rule for lighttpd, outside the CCU3 chroot: `/etc/init.d/S50lighttpd reload`,
+    never `restart` (see above and [04](04-webui.md)).
+13. `exit $EXITCODE`.
 
 Notes:
 
@@ -119,7 +130,9 @@ Notes:
 The WebUI runs `<rc.d script> uninstall` and afterwards deletes the rc.d script itself
 (`action_operation` in `cp_software.cgi`; failures go to `/var/log/addon-uninstall-error.log`).
 Your `uninstall` must stop the service and remove the button entry, the www symlink, any
-lighttpd, monit or cron files you created, and the addon directory. Make sure no dangling symlink
+lighttpd, monit or cron files you created, and the addon directory. On OpenCCU this runs inside
+the WebUI's request as well: after removing a lighttpd rule, reload lighttpd or restart it
+detached and delayed, never synchronously ([04](04-webui.md)). Make sure no dangling symlink
 stays behind: a dangling `/usr/local/etc/monit-<name>.cfg` breaks every monit reload
 (RedMatic issue #521; a `-f` test misses a dangling link, use `-L`).
 

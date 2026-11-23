@@ -68,8 +68,27 @@ Facts about the CGI environment, all verified on both firmwares:
   page as body; the message itself is only visible when you run the CGI by hand:
   `cd /usr/local/addons/<name>/www && QUERY_STRING='cmd=status' tclsh service.cgi`.
 - Your own HTTP server (Node-RED, a REST API) is reached through a proxy rule in
-  `/usr/local/etc/config/lighttpd/<name>.conf` (see RedMatic's `etc/lighttpd.conf`), restart
-  lighttpd once after creating it (`/etc/init.d/S50lighttpd restart`).
+  `/usr/local/etc/config/lighttpd/<name>.conf` (see RedMatic's `etc/lighttpd.conf`). lighttpd
+  reads these files only when it starts, so after creating the rule on a running OpenCCU
+  **reload** lighttpd (`/etc/init.d/S50lighttpd reload`), **never restart it**: `update_script`
+  runs inside a request of that same lighttpd (the WebUI's `cp_software.cgi`, see
+  [02](02-package-and-install.md#openccu-live)). A restart kills that request: the WebUI hangs in
+  its dialog or shows "Error while loading the following file: /config/cp_software.cgi", the
+  reboot after a fresh install never happens and the service is not started. `reload` is a
+  graceful restart: lighttpd-angel starts a new server that reads the rule, and the old one
+  finishes the running request (lighttpd logs `graceful shutdown started`). Should `reload` fail,
+  restart detached and delayed until the WebUI's answer is out:
+
+  ```sh
+  if ! /etc/init.d/S50lighttpd reload >/dev/null 2>&1; then
+      (sleep 5; /etc/init.d/S50lighttpd restart) >/dev/null 2>&1 </dev/null &
+  fi
+  ```
+
+  The same goes for an `uninstall` the WebUI starts that removes the rule. Do it only when the rule
+  is new (an update finds it in place) and not inside the CCU3's install chroot
+  (`[ ! -f /etc/init.d/S00InstallAddon ]`): the CCU3 firmware installs during the shutdown, and
+  its boot reads the rule.
 
 ## The CCU session
 

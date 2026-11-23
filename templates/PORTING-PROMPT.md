@@ -91,6 +91,9 @@ Work through chapter 12 in order. Make one commit per step, and explain why in e
    - Don't touch the firewall.
    - Ship a lighttpd fragment as `etc/lighttpd.conf` in the addon's tree; on openccu-lite do not
      link or copy it into `/usr/local/etc/config/lighttpd/`, the system writes a validated copy.
+   - Where the script installs that fragment itself (CCU3, OpenCCU), a new rule on a running
+     system needs `/etc/init.d/S50lighttpd reload`, never `restart`: on OpenCCU `update_script`
+     runs inside the WebUI's own lighttpd request, which a restart kills (no answer, no reboot).
 4. **rc.d script.**
    - `start` backgrounds the daemon and returns, and exits non-zero when the daemon cannot
      work (a bad configuration) instead of starting one that dies at once.
