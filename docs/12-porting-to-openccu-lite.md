@@ -62,12 +62,20 @@ grep -rnE 'dom\.(GetObject|CreateObject|DeleteObject)|rega_script|tclrega|:8181|
   executable `/usr/bin/occulited`; never `VARIANT=lite`):
 
   ```sh
-  if grep -q '^LITE=' /VERSION 2>/dev/null || [ -x /usr/bin/occulited ]; then
-      systemctl start addon-<id>.service 2>/dev/null || true
-  elif [ ! -e /etc/init.d/S00InstallAddon ]; then
-      cd / && /usr/local/etc/config/rc.d/<id> start
+  if [ "$WAS_RUNNING" = 1 ]; then
+      cd /
+      if grep -q '^LITE=' /VERSION 2>/dev/null || [ -x /usr/bin/occulited ]; then
+          systemctl start addon-<id>.service 2>/dev/null || true
+      elif [ -f /etc/init.d/S00InstallAddon ] && [ -x /proc/1/root/usr/local/etc/config/rc.d/<id> ] && command -v chroot >/dev/null 2>&1; then
+          chroot /proc/1/root /usr/local/etc/config/rc.d/<id> start
+      else
+          /usr/local/etc/config/rc.d/<id> start
+      fi
   fi
   ```
+
+  `WAS_RUNNING` is asked before the update's stop ([02](02-package-and-install.md), step 4; the
+  whole block is in [templates/update_script](../templates/update_script)).
 - **`Config-Url`.** If your `Config-Url` is not your settings page, write the right one on
   openccu-lite (the same rule), or name it in the manifest's `ui.settings_url`.
 - **`ln -sf` over `rc.d/<id>`** is fine: the system adopts the new script again.

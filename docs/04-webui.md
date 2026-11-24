@@ -37,7 +37,28 @@ For every addon whose `info` has an `Update:` line, the page fetches
 **response text as-is** into the "available version" cell (initially `n/a`). The download button
 opens `<Update URL>?cmd=download&version=<installed>` in a new window. OpenCCU's daily
 `checkAddonUpdates.sh` additionally curls the bare `Update:` URL and reports "Update available"
-when the lower-cased response differs from `Version:` and is not `n/a`.
+when the lower-cased response differs from `Version:` and is not `n/a`. It writes
+`/tmp/addon_updates.json`, and the home page's "Neue Zusatzsoftware" notice comes from that file.
+
+The list is only as fresh as the last run (once a day, at noon plus up to 15 minutes): after an
+update without a reboot it still holds the version that was the newest at that run. That version
+differs from the installed one, so the home page keeps announcing an "update" - even to an older
+version - until the next run. `update_script` therefore runs the check itself after an install,
+on OpenCCU only, detached and a few seconds later (it runs inside the WebUI's request, see
+[02](02-package-and-install.md)), and removes its own update check's cache:
+
+```sh
+rm -f /tmp/kit-$ADDON-release.json
+if [ ! -f /etc/init.d/S00InstallAddon ] && [ -x /bin/checkAddonUpdates.sh ]; then
+    (cd / && sleep 10 && [ ! -e /etc/config/NoAddonUpdateCheck ] && /bin/checkAddonUpdates.sh) >/dev/null 2>&1 </dev/null &
+fi
+```
+
+Not on the CCU3 firmware (its installer runs `update_script` in a chroot, where the job would run
+in the copy of the root); openccu-lite has no `checkAddonUpdates.sh`. `/etc/config/NoAddonUpdateCheck`
+is OpenCCU's switch for the daily check and is honoured here too. The cache file is
+[ccu-addon-kit](https://github.com/hobbyquaker/ccu-addon-kit)'s; name your own update check's
+cache, if it has one. The whole block is in [templates/update_script](../templates/update_script).
 
 So the CGI returns plain text: the newest version string, or `n/a`; and on `cmd=download` an HTML
 redirect to your release page. Query the GitHub releases API (`/repos/<owner>/<repo>/releases/latest`

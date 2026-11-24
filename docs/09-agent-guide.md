@@ -60,8 +60,10 @@ Everything on this list cost real hours in 2026:
 - Tcl 8.2 on the CCU3: `dict`, `{*}`, `eq`/`ne`, `2>@1`, value-returning `regsub` and `scan` all fail ([04](04-webui.md)).
 - A literal `{` inside a braced `if` condition is a Tcl syntax error, shown by lighttpd as a 500.
 - lighttpd's `PATH` has no `/sbin`; `ip` and `iptables` need absolute paths.
-- `update_script` must not start services when `/etc/init.d/S00InstallAddon` exists, and must
-  start them on updates when it does not, from `cd /`.
+- `update_script` starts the service again after an update exactly when it was running before
+  (asked before the stop), from `cd /`; on the CCU3 firmware (`/etc/init.d/S00InstallAddon`)
+  through `chroot /proc/1/root`, never inside the installer's chroot. `S00InstallAddon` does not
+  mean "shutdown install": a self-updater or a patched piVCCU installs live through the same chroot.
 - Mosquitto 2.x denies anonymous clients unless `allow_anonymous true`; a migrated 1.x config
   locks everybody out.
 - `mosquitto --test-config` saves its (empty) in-memory database on exit; test on a copy with

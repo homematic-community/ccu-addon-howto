@@ -70,8 +70,18 @@ install's service is not started, although the files are in place. Reload lightt
 4. Unmounts and syncs. The temp dir is **not** removed. The following boot starts the addons.
 
 Consequences: `update_script` runs in a copy of the root filesystem at shutdown. Anything it
-starts is gone at boot, so never start a service from it when `/etc/init.d/S00InstallAddon`
-exists. `/usr/local` inside the chroot is the real one. The leftover temp dir eats space and
+starts there is gone at boot, so never start a service *inside* that chroot. `/usr/local` inside
+the chroot is the real one, and so is `/proc`.
+
+`/etc/init.d/S00InstallAddon` is not proof of the shutdown install, though. `/bin/install_addon`
+is also called on a running system: by an addon's self-updater ([07](07-updates-and-releases.md)),
+or on a piVCCU whose upload is patched to install without the reboot. It builds the same chroot
+then, and nothing reboots afterwards, so a service the script stopped stays stopped unless the
+script starts it again. The rule that covers every case: ask before the stop whether the service
+runs, and after the install start it again only then. During the shutdown the addons are already
+stopped (`S98StartAddons` stops them before `S00InstallAddon` runs: the shutdown runs the init
+scripts in reverse order), so nothing is started there. In a live install the start goes to the
+real root through `chroot /proc/1/root`, never into the temporary copy (step 11 below). The leftover temp dir eats space and
 inodes on the small `/usr/local` partition; a self-updater should remove stale
 `/usr/local/tmp/tmp.*` directories (after releasing their mounts) before it downloads.
 
@@ -94,8 +104,10 @@ steps:
 2. `mount | grep /usr/local || mount /usr/local`: historical, harmless, keep it.
 3. Create `/usr/local/addons`, `/usr/local/etc/config/rc.d` and
    `/usr/local/etc/config/addons/www` with mode 755 if missing.
-4. **Update detection**: if `/usr/local/etc/config/rc.d/<name>` exists this is an update. Stop
-   the running service through it and remember `EXITCODE=0`; otherwise `EXITCODE=10`.
+4. **Update detection**: if `/usr/local/etc/config/rc.d/<name>` exists this is an update. First
+   remember whether the service runs (`WAS_RUNNING`: on openccu-lite `systemctl is-active
+   addon-<name>.service`, elsewhere `rc.d/<name> status`, exit 0 = running, [03](03-rc-script.md)),
+   then stop it through the script and remember `EXITCODE=0`; otherwise `EXITCODE=10`.
 5. Remove what the addon owns from the previous version (`bin`, `lib`, `www`, ...) so stale files
    cannot survive; keep the user's data (`etc/`, `var/`). Then `cp -af <name> /usr/local/addons/`.
 6. First-install defaults: copy `etc/<config>.default` to `etc/<config>` only when the latter is
@@ -108,12 +120,18 @@ steps:
 9. The *Einstellungen* button: `touch /usr/local/etc/config/hm_addons.cfg` and
    `./update_addon <name> <name>.cfg` ([04](04-webui.md)).
 10. `sync`.
-11. On an update (`EXITCODE=0`) and **only when `/etc/init.d/S00InstallAddon` does not exist**
-    (that is: not inside the CCU3 chroot): `cd /` and start the service. OpenCCU does not reboot
-    on 0 and nothing else would start it.
+11. **An addon that was running before an update runs after it:** when `WAS_RUNNING` is set,
+    `cd /` and start the service - on openccu-lite through `systemctl start addon-<name>.service`,
+    on the CCU3 firmware (`/etc/init.d/S00InstallAddon` exists) through
+    `chroot /proc/1/root /usr/local/etc/config/rc.d/<name> start` (the real root, see above),
+    elsewhere through the rc.d script. OpenCCU does not reboot on 0 and nothing else would start
+    it; a service that was stopped stays stopped. The block is in
+    [templates/update_script](../templates/update_script).
 12. A new proxy rule for lighttpd, outside the CCU3 chroot: `/etc/init.d/S50lighttpd reload`,
     never `restart` (see above and [04](04-webui.md)).
-13. `exit $EXITCODE`.
+13. Refresh the firmware's list of addon updates: remove your update check's cache, and on OpenCCU
+    run `checkAddonUpdates.sh` detached and delayed ([04](04-webui.md)).
+14. `exit $EXITCODE`.
 
 Notes:
 

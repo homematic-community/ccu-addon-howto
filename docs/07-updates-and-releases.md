@@ -43,9 +43,10 @@ Both addons implement one-click updates. The pattern:
 6. Install with `/bin/install_addon` when it exists (both firmwares; on the CCU3 this is a live
    chroot install without reboot, which works fine), otherwise unpack and run `update_script`
    by hand (debmatic, containers). Exit code 0 = done, 10 = reboot required.
-7. Clean up the CCU3's leftover temp dir, check the installed version, start the service if the
-   firmware did not (`update_script` cannot tell a live run from the chroot on the CCU3, so it
-   never starts there), report `done` or `error` with the log.
+7. Clean up the CCU3's leftover temp dir, check the installed version, start the service if it
+   does not run (an `update_script` that follows [02](02-package-and-install.md) starts a service
+   that was running again, on the CCU3 through `chroot /proc/1/root`; an older one never started
+   it there), report `done` or `error` with the log.
 8. The page shows phases and the log on error; because lighttpd serves the page, it survives the
    addon's own restart. Measured: 1 s on OpenCCU x86_64 for a 3 MB package, 6.5 minutes on the
    CCU3 for RedMatic's 60 MB package (the chroot copy dominates).
