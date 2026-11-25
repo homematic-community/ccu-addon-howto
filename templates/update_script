@@ -38,6 +38,38 @@ mkdir -p $ADDONS_DIR && chmod 755 $ADDONS_DIR
 mkdir -p $CONF_DIR/addons/www && chmod 755 $CONF_DIR/addons/www
 mkdir -p $CONF_DIR/rc.d
 
+# --- ccu-addon-kit: installer leftovers (update_script-reference, keep identical) ---
+# The CCU3 firmware's /bin/install_addon (S00InstallAddon exists; piVCCU runs the same firmware)
+# unpacks every package into a new /usr/local/tmp/tmp.XXXXXX, copies /bin, /lib, /sbin, /etc and
+# /usr into it for its chroot and never removes it: one such directory per install, the size of
+# the root filesystem (about 230 MB). The firmware's boot empties /usr/local/tmp, but where no
+# reboot follows the install (a live install, a piVCCU container) they pile up on the user
+# partition, and every backup of /usr/local carries them. So the leftovers of earlier installs go
+# here, and this install's own directory at the end of this script (below), once the installer
+# has released it. A directory goes only when it holds an update_script, is not this install's
+# (the chroot's root or the working directory) and nothing is mounted at or below it: rm -rf
+# through the installer's bind mount of /usr/local would empty the user partition (without a
+# readable /proc/1/mounts nothing is removed). OpenCCU's and
+# openccu-lite's installers remove their directory themselves.
+KIT_TMPCLEAN='
+[ -r /proc/1/mounts ] || exit 0
+if [ "$1" = wait ]; then
+    n=0
+    while [ $n -lt 300 ] && grep -qx install_addon /proc/[0-9]*/comm 2>/dev/null; do sleep 2; n=$((n + 2)); done
+fi
+self=" $(stat -c %d:%i / . 2>/dev/null | tr "\n" " ") "
+for d in /usr/local/tmp/tmp.*; do
+    [ -d "$d" ] && [ ! -L "$d" ] && [ -f "$d/update_script" ] || continue
+    case "$self" in *" $(stat -c %d:%i "$d" 2>/dev/null) "*) continue ;; esac
+    cat /proc/1/mounts /proc/self/mounts 2>/dev/null | awk -v d="$d" "\$2 == d || index(\$2, d \"/\") == 1 { f = 1 } END { exit !f }" && continue
+    rm -rf "$d" && logger -t "$2" "removed the installer leftover $d" 2>/dev/null
+done
+'
+if [ -f /etc/init.d/S00InstallAddon ]; then
+    sh -c "$KIT_TMPCLEAN" kit-tmpclean now $ADDON
+fi
+# --- end ---
+
 # --- ccu-addon-kit: was the service running? (update_script-reference, keep identical) ---
 # An update starts the service again only when it ran when this install began (below): an addon
 # that ran before an update runs after it, one that was stopped stays stopped. Asked before
@@ -116,6 +148,19 @@ fi
 rm -f /tmp/kit-$ADDON-release.json
 if [ ! -f /etc/init.d/S00InstallAddon ] && [ -x /bin/checkAddonUpdates.sh ]; then
     (cd / && sleep 10 && [ ! -e /etc/config/NoAddonUpdateCheck ] && /bin/checkAddonUpdates.sh) >/dev/null 2>&1 </dev/null &
+fi
+# --- end ---
+
+# --- ccu-addon-kit: this install's leftover (update_script-reference, keep identical) ---
+# The CCU3 firmware's installer leaves this script's directory behind (above): a job on the real
+# root (/proc/1/root, the chroot has /proc bound in) waits until install_addon has ended and
+# unmounted, then removes it by the same rules. Nothing of the job may stay in the chroot: its
+# output goes to the real root's /dev/null, as one opened through the chroot's /dev would keep
+# that bind mount busy, the installer's umount would fail and the directory would stay. During
+# the shutdown install the reboot may end the job first; the boot empties /usr/local/tmp there.
+if [ -f /etc/init.d/S00InstallAddon ] && [ -c /proc/1/root/dev/null ] && [ -d /proc/1/root/usr/local/tmp ] && command -v chroot >/dev/null 2>&1; then
+    cd /
+    chroot /proc/1/root /bin/sh -c "$KIT_TMPCLEAN" kit-tmpclean wait $ADDON >/proc/1/root/dev/null 2>&1 </proc/1/root/dev/null &
 fi
 # --- end ---
 

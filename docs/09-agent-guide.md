@@ -78,7 +78,8 @@ Everything on this list cost real hours in 2026:
 - Alpine's own package of a program may drag in a dependency tree twice the size of a source build with features off.
 - GitHub keeps `+` in tag and asset names but URLs need `%2B`.
 - The CCU3's `/usr/local` has 96k inodes; count them for `node_modules`, and clean the chroot
-  installer's leftover temp dirs.
+  installer's leftover temp dirs (the template's *installer leftovers* blocks; never a directory
+  with a mount below it, [02](02-package-and-install.md)).
 - A password or ACL file that a Mosquitto plugin points to must exist, or the broker does not
   start, and `--test-config` does not catch it: create empty files at service start.
 - Non-ASCII passwords: Tcl re-encodes strings with the CGI's locale before `exec`; keep request

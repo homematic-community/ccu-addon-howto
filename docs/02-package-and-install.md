@@ -67,7 +67,8 @@ install's service is not started, although the files are in place. Reload lightt
    dir and bind-mounts `dev`, `proc`, `sys`, `dev/pts` and `/usr/local` into it (measured: about
    230 MB and 17k inodes on firmware 3.89.8).
 3. `chroot`s into the temp dir and runs `./update_script HM-RASPBERRYMATIC`.
-4. Unmounts and syncs. The temp dir is **not** removed. The following boot starts the addons.
+4. Unmounts and syncs. The temp dir is **not** removed. The following boot starts the addons and
+   empties `/usr/local/tmp` (`S06InitSystem`: `rm -rf /usr/local/tmp/*`).
 
 Consequences: `update_script` runs in a copy of the root filesystem at shutdown. Anything it
 starts there is gone at boot, so never start a service *inside* that chroot. `/usr/local` inside
@@ -81,9 +82,33 @@ script starts it again. The rule that covers every case: ask before the stop whe
 runs, and after the install start it again only then. During the shutdown the addons are already
 stopped (`S98StartAddons` stops them before `S00InstallAddon` runs: the shutdown runs the init
 scripts in reverse order), so nothing is started there. In a live install the start goes to the
-real root through `chroot /proc/1/root`, never into the temporary copy (step 11 below). The leftover temp dir eats space and
-inodes on the small `/usr/local` partition; a self-updater should remove stale
-`/usr/local/tmp/tmp.*` directories (after releasing their mounts) before it downloads.
+real root through `chroot /proc/1/root`, never into the temporary copy (step 11 below).
+
+**The leftover temp dirs.** Each install leaves one `/usr/local/tmp/tmp.XXXXXX` holding the
+package and a copy of the root filesystem (about 230 MB and 17k inodes on firmware 3.89.8). After
+the usual shutdown install the next boot removes it. After a live install nothing does: on a
+piVCCU that installs without the reboot every update of every addon added one, and piVCCU's
+own backup (`pivccu-backup`, which tars the whole user partition, see [06](06-system-integration.md))
+grew by about 75 MB per update (reported for ccu-addon-battery, fixed in its 1.5.9). They also eat
+space and inodes on the small `/usr/local` partition. So `update_script` removes them itself (steps
+3 and 14 below): the ones of earlier installs at once, and its own through a job on the real root
+that waits until `install_addon` has ended and unmounted. The rules that keep this safe:
+
+- only directories `/usr/local/tmp/tmp.*` that hold an `update_script`, and only on the CCU3
+  firmware (`/etc/init.d/S00InstallAddon`): OpenCCU's and openccu-lite's installers remove their
+  own directory;
+- never the running install's directory (inside the chroot it is `/`; compare device and inode with
+  `stat -c %d:%i`, a path comparison does not work there);
+- never a directory with anything mounted at or below it, read from `/proc/1/mounts` (the real
+  root's view; inside the chroot `/proc` is the real one). `rm -rf` follows the installer's bind
+  mount of `/usr/local` and empties the user partition. Without a readable `/proc/1/mounts`
+  remove nothing;
+- the job started from the chroot must keep nothing open in it: redirect its output to
+  `/proc/1/root/dev/null`. A `>/dev/null` opened inside the chroot keeps the chroot's `/dev` bind
+  busy, the installer's `umount` fails (it has no lazy fallback), and the directory stays mounted.
+
+A self-updater should still remove stale `/usr/local/tmp/tmp.*` directories by the same rules
+before it downloads ([07](07-updates-and-releases.md)): it needs their space now.
 
 The exit code is ignored on this path: the CCU3 firmware always reboots after an upload. An
 `update_script` still returns 10 on a fresh install and 0 on an update, because the same package
@@ -103,7 +128,9 @@ steps:
    and `exit 13` on a mismatch. The old `busmatic` grep is dead code ([01](01-platforms.md)).
 2. `mount | grep /usr/local || mount /usr/local`: historical, harmless, keep it.
 3. Create `/usr/local/addons`, `/usr/local/etc/config/rc.d` and
-   `/usr/local/etc/config/addons/www` with mode 755 if missing.
+   `/usr/local/etc/config/addons/www` with mode 755 if missing. On the CCU3 firmware remove the
+   leftover temp dirs of earlier installs (see above; the block *installer leftovers* in
+   [templates/update_script](../templates/update_script)).
 4. **Update detection**: if `/usr/local/etc/config/rc.d/<name>` exists this is an update. First
    remember whether the service runs (`WAS_RUNNING`: on openccu-lite `systemctl is-active
    addon-<name>.service`, elsewhere `rc.d/<name> status`, exit 0 = running, [03](03-rc-script.md)),
@@ -131,7 +158,12 @@ steps:
     never `restart` (see above and [04](04-webui.md)).
 13. Refresh the firmware's list of addon updates: remove your update check's cache, and on OpenCCU
     run `checkAddonUpdates.sh` detached and delayed ([04](04-webui.md)).
-14. `exit $EXITCODE`.
+14. On the CCU3 firmware, start the job that removes this install's own temp dir once
+    `install_addon` has ended: `cd /`, then `chroot /proc/1/root /bin/sh -c "$KIT_TMPCLEAN" ...
+    >/proc/1/root/dev/null 2>&1 </proc/1/root/dev/null &` (the block *this install's leftover*).
+    During the shutdown install the reboot may end it first; the boot empties `/usr/local/tmp`
+    there anyway.
+15. `exit $EXITCODE`.
 
 Notes:
 

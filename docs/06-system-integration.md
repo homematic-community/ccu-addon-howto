@@ -34,8 +34,12 @@ OpenCCU's `createBackup.sh` tars `/usr/local` with `--exclude-tag=.nobackup`
 is pure build output (`bin`, `lib`, `www`, `node_modules`) and keep only configuration and data
 (`etc`, `var`) backup-worthy; RedMatic offers a switch to include everything. A restore on another
 CCU then needs the addon package installed again, which is what users expect. The CCU3 firmware's
-backup (`cp_maintenance.cgi`) does not know `.nobackup`, so a CCU3 backup with a large addon can
-exceed what the WebUI restores comfortably; document it.
+WebUI backup (`/www/config/backup.tcl`, read on 3.85.7 and 3.89.11) uses the same rules:
+`--exclude=usr/local/tmp`, `--exclude-tag=.nobackup`, `--one-file-system`. piVCCU's host-side
+`pivccu-backup` ([source](https://github.com/alexreinert/piVCCU/blob/master/pivccu/host3/pivccu-backup.sh))
+does not: it tars the whole user partition, `/usr/local/tmp` and `.nobackup` directories included.
+On a piVCCU, whatever an addon leaves below `/usr/local/tmp` ends up in every such backup
+([02](02-package-and-install.md), the leftover temp dirs).
 
 ## monit (OpenCCU only)
 

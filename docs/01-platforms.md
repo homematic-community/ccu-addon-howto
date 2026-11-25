@@ -43,7 +43,7 @@ published with it (glibc, busybox, Tcl) and occulited's documents.
   - `/usr/local/etc/monit*.cfg`, `/usr/local/crontabs/root`, `/usr/local/etc/rc.local`,
     `/usr/local/etc/rc.prelocal`, `/usr/local/etc/profile.d/*.sh` ([06](06-system-integration.md)).
   - `/usr/local/tmp` is where uploads land (`new_addon.tar.gz`) and installers unpack; it is
-    excluded from backups.
+    excluded from the WebUI's backups (not from piVCCU's `pivccu-backup`) and emptied at boot.
 - `/etc/config/server.pem` is the CCU's own TLS certificate and key in one PEM file (the WebUI
   uses it for https); an addon may use it for its own TLS listeners.
 - `/var/log/messages` is the busybox syslog. `/var/hm_mode` (`HM_MODE=NORMAL`) and
